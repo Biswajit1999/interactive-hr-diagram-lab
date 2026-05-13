@@ -1,0 +1,23 @@
+-- Gaia DR3 H–R diagram RA-slice query template
+-- Change RA_MIN and RA_MAX before running.
+-- Example:
+--   RA_MIN = 0
+--   RA_MAX = 72
+--
+-- Useful for downloading several smaller CSV files instead of one huge file.
+
+SELECT TOP 10000
+    source_id,
+    ra,
+    dec,
+    parallax,
+    parallax_over_error,
+    bp_rp,
+    phot_g_mean_mag
+FROM gaiadr3.gaia_source
+WHERE parallax > 2
+  AND parallax_over_error > 20
+  AND bp_rp IS NOT NULL
+  AND phot_g_mean_mag IS NOT NULL
+  AND ra >= RA_MIN
+  AND ra < RA_MAX
