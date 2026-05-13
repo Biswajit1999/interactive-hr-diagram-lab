@@ -109,6 +109,11 @@
         <div><span>BUFFER</span><strong id="buffer-state">EMPTY</strong></div>
       </div>
 
+      <div id="science-caption" class="science-caption">
+        <strong>What am I seeing?</strong>
+        <span>Real Gaia stars arranged by colour and absolute brightness. The diagonal band is the main sequence; the Sun is marked for scale.</span>
+      </div>
+
       <div id="loading-screen" class="loading-screen is-visible">
         <div class="loading-card">
           <span class="eyebrow">DATA PIPELINE</span>
@@ -291,14 +296,35 @@
 
     function clearCanvas() {
       const w = state.width, h = state.height;
-      const gradient = ctx.createRadialGradient(w * 0.52, h * 0.46, 20, w * 0.52, h * 0.46, Math.max(w, h) * 0.74);
-      gradient.addColorStop(0, 'rgba(53,242,208,0.065)');
-      gradient.addColorStop(0.45, 'rgba(5,20,30,0.36)');
-      gradient.addColorStop(1, 'rgba(1,2,4,1)');
       ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, w, h);
-      ctx.strokeStyle = 'rgba(53,242,208,0.060)';
+
+      if (state.dataset) {
+        // Data is ready: remove the dramatic acquisition glow so the star distribution stays crisp.
+        const dark = ctx.createLinearGradient(0, 0, 0, h);
+        dark.addColorStop(0, '#01040a');
+        dark.addColorStop(0.55, '#010206');
+        dark.addColorStop(1, '#020712');
+        ctx.fillStyle = dark;
+        ctx.fillRect(0, 0, w, h);
+
+        const faint = ctx.createRadialGradient(w * 0.50, h * 0.50, 0, w * 0.50, h * 0.50, Math.max(w, h) * 0.62);
+        faint.addColorStop(0, 'rgba(53,242,208,0.018)');
+        faint.addColorStop(0.55, 'rgba(8,20,30,0.035)');
+        faint.addColorStop(1, 'rgba(1,2,4,0)');
+        ctx.fillStyle = faint;
+        ctx.fillRect(0, 0, w, h);
+      } else {
+        // Before/during data stream: keep the cinematic instrument glow.
+        const gradient = ctx.createRadialGradient(w * 0.52, h * 0.46, 20, w * 0.52, h * 0.46, Math.max(w, h) * 0.74);
+        gradient.addColorStop(0, 'rgba(53,242,208,0.070)');
+        gradient.addColorStop(0.45, 'rgba(5,20,30,0.36)');
+        gradient.addColorStop(1, 'rgba(1,2,4,1)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      const gridAlpha = state.dataset ? 0.030 : 0.060;
+      ctx.strokeStyle = `rgba(53,242,208,${gridAlpha})`;
       ctx.lineWidth = 1;
       for (let x = 0; x < w; x += 44) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
       for (let y = 0; y < h; y += 44) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
@@ -334,10 +360,10 @@
 
     function plotBounds() {
       return {
-        left: Math.max(78, state.width * 0.07),
-        right: state.width - Math.max(58, state.width * 0.055),
-        top: Math.max(72, state.height * 0.10),
-        bottom: state.height - Math.max(74, state.height * 0.10)
+        left: Math.max(82, state.width * 0.072),
+        right: state.width - Math.max(70, state.width * 0.060),
+        top: Math.max(82, state.height * 0.118),
+        bottom: state.height - Math.max(72, state.height * 0.090)
       };
     }
     function xHr(bpRp, b) { return b.left + (bpRp + 0.5) / 5.0 * (b.right - b.left); }
@@ -376,7 +402,7 @@
     function drawAxes(b, title) {
       ctx.save();
       ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = 'rgba(148,163,184,0.15)';
+      ctx.strokeStyle = 'rgba(148,163,184,0.115)';
       ctx.lineWidth = 1;
       for (let i = 0; i <= 10; i++) {
         const x = b.left + i / 10 * (b.right - b.left);
@@ -386,16 +412,32 @@
         const y = b.top + i / 10 * (b.bottom - b.top);
         ctx.beginPath(); ctx.moveTo(b.left, y); ctx.lineTo(b.right, y); ctx.stroke();
       }
-      ctx.strokeStyle = 'rgba(234,242,255,0.46)'; ctx.strokeRect(b.left, b.top, b.right - b.left, b.bottom - b.top);
-      ctx.fillStyle = 'rgba(53,242,208,0.96)'; ctx.textAlign = 'center'; ctx.font = '900 13px JetBrains Mono, monospace';
+      ctx.strokeStyle = 'rgba(234,242,255,0.38)';
+      ctx.strokeRect(b.left, b.top, b.right - b.left, b.bottom - b.top);
+
+      ctx.fillStyle = 'rgba(53,242,208,0.92)';
+      ctx.textAlign = 'center';
+      ctx.font = '900 12px JetBrains Mono, monospace';
       ctx.fillText(title, (b.left + b.right) / 2, b.top - 58);
+
       drawSpectralAxis(b);
-      ctx.font = '800 11px JetBrains Mono, monospace'; ctx.fillText('BP–RP colour index', (b.left + b.right) / 2, b.bottom + 44);
-      ctx.save(); ctx.translate(b.left - 54, (b.top + b.bottom) / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('Absolute Gaia G magnitude  M_G', 0, 0); ctx.restore();
-      ctx.fillStyle = 'rgba(234,242,255,0.72)'; ctx.textAlign = 'center';
+
+      ctx.font = '800 11px JetBrains Mono, monospace';
+      ctx.fillStyle = 'rgba(53,242,208,0.85)';
+      ctx.fillText('BP–RP colour index', (b.left + b.right) / 2, b.bottom + 44);
+      ctx.save();
+      ctx.translate(b.left - 54, (b.top + b.bottom) / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('Absolute Gaia G magnitude  M_G', 0, 0);
+      ctx.restore();
+
+      ctx.fillStyle = 'rgba(234,242,255,0.68)';
+      ctx.font = '700 10px JetBrains Mono, monospace';
+      ctx.textAlign = 'center';
       for (let xVal = 0; xVal <= 4; xVal += 1) ctx.fillText(String(xVal), xHr(xVal, b), b.bottom + 22);
       ctx.textAlign = 'right';
       for (let yVal = -10; yVal <= 15; yVal += 5) ctx.fillText(String(yVal), b.left - 12, yHr(yVal, b) + 4);
+
       if (state.showLuminosity) drawLuminosityAxis(b);
       ctx.restore();
     }
@@ -404,59 +446,115 @@
       ctx.save();
       ctx.textAlign = 'left';
       ctx.font = '800 10px JetBrains Mono, monospace';
-      ctx.fillStyle = 'rgba(255,220,80,0.86)';
-      ctx.save(); ctx.translate(b.right + 48, (b.top + b.bottom) / 2); ctx.rotate(Math.PI / 2); ctx.fillText('Luminosity  L/L☉', 0, 0); ctx.restore();
-      const vals = [1e5, 1e3, 10, 1, 0.01, 0.0001];
-      for (const L of vals) {
+      ctx.fillStyle = 'rgba(255,220,80,0.78)';
+      ctx.save();
+      ctx.translate(b.right + 46, (b.top + b.bottom) / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.fillText('Luminosity  L/L☉', 0, 0);
+      ctx.restore();
+
+      const ticks = [
+        [1e5, '10⁵'], [1e3, '10³'], [10, '10'], [1, '1'], [1e-2, '10⁻²'], [1e-4, '10⁻⁴']
+      ];
+      for (const [L, label] of ticks) {
         const MG = 4.67 - 2.5 * Math.log10(L);
         const y = yHr(MG, b);
         if (y < b.top || y > b.bottom) continue;
-        ctx.strokeStyle = 'rgba(255,220,80,0.18)'; ctx.beginPath(); ctx.moveTo(b.right, y); ctx.lineTo(b.right + 7, y); ctx.stroke();
-        ctx.fillText(L >= 1 ? L.toExponential(0).replace('e+', '×10^') : L.toString(), b.right + 11, y + 3);
+        ctx.strokeStyle = 'rgba(255,220,80,0.13)';
+        ctx.beginPath(); ctx.moveTo(b.right, y); ctx.lineTo(b.right + 7, y); ctx.stroke();
+        ctx.fillText(label, b.right + 11, y + 3);
       }
       ctx.restore();
     }
 
     function drawRegionCurves(b) {
       if (!state.showRegions) return;
-      const rich = state.overlayTemplate !== 'clean';
-      ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.setLineDash(rich ? [4, 5] : [7, 8]); ctx.lineWidth = rich ? 1.2 : 1;
-      function curve(points, colour) { ctx.strokeStyle = colour; ctx.beginPath(); points.forEach((p,i)=>{ const x=xHr(p[0],b), y=yHr(p[1],b); if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y); }); ctx.stroke(); }
-      curve([[-0.25,-1.0],[0,1.0],[0.45,3.5],[0.82,4.67],[1.25,7.2],[1.8,10.1],[2.55,13.6],[3.2,15.2]], 'rgba(53,242,208,0.43)');
-      curve([[0.6,1.2],[1.1,0.7],[1.7,0.15],[2.2,-0.45],[2.9,-1.4],[3.5,-2.2]], 'rgba(255,122,61,0.44)');
-      curve([[-0.25,11.4],[0.15,12.3],[0.65,13.5],[1.15,14.8],[1.55,15.4]], 'rgba(101,168,255,0.44)');
-      curve([[-0.2,-4.9],[0.8,-5.1],[1.8,-5.35],[3.1,-5.75]], 'rgba(255,73,237,0.46)');
-      ctx.setLineDash([]);
+
+      const clean = state.overlayTemplate === 'clean';
+      const annotated = state.overlayTemplate === 'annotated';
+      const textbook = state.overlayTemplate === 'textbook';
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+
+      // Clean mode: only quiet labels. Textbook/annotated modes add guide curves.
+      if (!clean) {
+        ctx.setLineDash(textbook ? [5, 6] : [4, 7]);
+        ctx.lineWidth = textbook ? 1.05 : 0.90;
+        function curve(points, colour) {
+          ctx.strokeStyle = colour;
+          ctx.beginPath();
+          points.forEach((p,i)=>{ const x=xHr(p[0],b), y=yHr(p[1],b); if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+          ctx.stroke();
+        }
+        curve([[-0.25,-1.0],[0,1.0],[0.45,3.5],[0.82,4.67],[1.25,7.2],[1.8,10.1],[2.55,13.6],[3.2,15.2]], 'rgba(53,242,208,0.24)');
+        curve([[0.6,1.2],[1.1,0.7],[1.7,0.15],[2.2,-0.45],[2.9,-1.4],[3.5,-2.2]], 'rgba(255,122,61,0.25)');
+        curve([[-0.25,11.4],[0.15,12.3],[0.65,13.5],[1.15,14.8],[1.55,15.4]], 'rgba(101,168,255,0.24)');
+        curve([[-0.2,-4.9],[0.8,-5.1],[1.8,-5.35],[3.1,-5.75]], 'rgba(255,73,237,0.25)');
+        ctx.setLineDash([]);
+      }
+
+      const labelAlpha = clean ? 0.48 : 0.70;
       const labels = [
-        ['SUPERGIANTS', 1.65, -6.1, 'rgba(255,73,237,0.78)'], ['RED GIANTS', 2.55, 0.4, 'rgba(255,122,61,0.78)'],
-        ['SUBGIANTS', 1.15, 2.8, 'rgba(211,110,255,0.70)'], ['MAIN SEQUENCE', 0.50, 7.9, 'rgba(53,242,208,0.68)'],
-        ['WHITE DWARFS', 0.10, 13.2, 'rgba(101,168,255,0.70)']
+        ['SUPERGIANTS', 1.60, -6.1, `rgba(255,73,237,${labelAlpha})`],
+        ['RED GIANTS', 2.42, 0.2, `rgba(255,122,61,${labelAlpha})`],
+        ['SUBGIANTS', 1.12, 2.6, `rgba(211,110,255,${labelAlpha})`],
+        ['MAIN SEQUENCE', 0.36, 7.8, `rgba(53,242,208,${labelAlpha})`],
+        ['WHITE DWARFS', -0.06, 13.1, `rgba(101,168,255,${labelAlpha})`]
       ];
-      ctx.font = '900 12px JetBrains Mono, monospace';
-      for (const [name,x,y,c] of labels) { ctx.fillStyle = c; ctx.fillText(name, xHr(x,b), yHr(y,b)); }
-      if (rich) drawTextbookRegionHulls(b);
+      ctx.font = clean ? '800 10px JetBrains Mono, monospace' : '900 11px JetBrains Mono, monospace';
+      for (const [name,x,y,c] of labels) {
+        ctx.fillStyle = c;
+        ctx.fillText(name, xHr(x,b), yHr(y,b));
+      }
+
+      if (textbook || annotated) drawTextbookRegionHulls(b, annotated);
       ctx.restore();
     }
 
-    function drawTextbookRegionHulls(b) {
-      ctx.save(); ctx.lineWidth = 1.1; ctx.strokeStyle = 'rgba(42,255,125,0.34)';
+    function drawTextbookRegionHulls(b, annotated = false) {
+      ctx.save();
+      ctx.lineWidth = annotated ? 0.95 : 1.05;
+      ctx.strokeStyle = annotated ? 'rgba(42,255,125,0.18)' : 'rgba(42,255,125,0.26)';
       const hulls = [
         [[-0.25,-1.2],[0.1,2.0],[0.8,5.3],[1.5,9.0],[2.35,13.2],[1.55,15.0],[0.2,13.0],[-0.3,3.0]],
         [[0.75,-0.8],[1.55,-1.0],[2.8,-2.0],[3.45,-3.3],[3.75,-1.3],[2.75,0.9],[1.0,1.7]],
         [[-0.35,11.0],[0.25,12.1],[0.95,13.8],[1.55,15.5],[0.45,15.8],[-0.3,13.6]]
       ];
-      hulls.forEach(points => { ctx.beginPath(); points.forEach((p,i)=>{ const x=xHr(p[0],b), y=yHr(p[1],b); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }); ctx.closePath(); ctx.stroke(); });
+      hulls.forEach(points => {
+        ctx.beginPath();
+        points.forEach((p,i)=>{ const x=xHr(p[0],b), y=yHr(p[1],b); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+        ctx.closePath();
+        ctx.stroke();
+      });
       ctx.restore();
     }
 
     function drawSunMarker(b) {
       if (!state.showSun) return;
       const x = xHr(SUN.bpRp, b), y = yHr(SUN.MG, b);
-      ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.strokeStyle = 'rgba(255,222,88,0.95)'; ctx.fillStyle = 'rgba(255,222,88,0.95)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.stroke();
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+
+      const pulse = 1 + 0.05 * Math.sin(performance.now() / 600);
+      ctx.strokeStyle = 'rgba(255,222,88,0.95)';
+      ctx.fillStyle = 'rgba(255,222,88,0.95)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, 7 * pulse, 0, Math.PI * 2); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(x-14,y); ctx.lineTo(x+14,y); ctx.moveTo(x,y-14); ctx.lineTo(x,y+14); ctx.stroke();
-      ctx.font = '900 12px JetBrains Mono, monospace'; ctx.fillText(SUN.label, x + 16, y - 12);
-      ctx.font = '700 10px JetBrains Mono, monospace'; ctx.fillStyle = 'rgba(255,236,150,0.82)'; ctx.fillText(`${SUN.spectral} · ${SUN.teff}`, x + 16, y + 4);
+
+      const boxX = Math.min(x + 18, b.right - 218);
+      const boxY = Math.max(b.top + 12, y - 46);
+      ctx.fillStyle = 'rgba(2,6,23,0.76)';
+      ctx.strokeStyle = 'rgba(255,222,88,0.35)';
+      ctx.beginPath(); ctx.roundRect(boxX, boxY, 205, 56, 12); ctx.fill(); ctx.stroke();
+
+      ctx.fillStyle = 'rgba(255,222,88,0.96)';
+      ctx.font = '900 11px JetBrains Mono, monospace';
+      ctx.fillText('☉ SUN · G2V', boxX + 12, boxY + 20);
+      ctx.fillStyle = 'rgba(255,236,150,0.82)';
+      ctx.font = '700 10px JetBrains Mono, monospace';
+      ctx.fillText('BP–RP ≈ 0.82   M_G ≈ 4.67', boxX + 12, boxY + 38);
       ctx.restore();
     }
 
@@ -490,9 +588,9 @@
         const bpRp = hr[i*2], MG = hr[i*2+1];
         const x = xHr(bpRp, b), y = yHr(MG, b);
         if (x < b.left || x > b.right || y < b.top || y > b.bottom) continue;
-        const alpha = state.colourTemplate === 'density' ? 0.075 : 0.065;
+        const alpha = state.colourTemplate === 'density' ? 0.048 : 0.038;
         ctx.fillStyle = starColourFromBpRp(bpRp, alpha);
-        ctx.fillRect(x, y, 1.25, 1.25);
+        ctx.fillRect(x, y, state.colourTemplate === 'density' ? 1.12 : 1.02, state.colourTemplate === 'density' ? 1.12 : 1.02);
       }
       ctx.restore(); ctx.globalCompositeOperation = 'source-over';
       drawSunMarker(b); drawHoverInfo(b);
@@ -531,7 +629,7 @@
     async function initializeDatastream() {
       const targetRows = Number(rowLimitSelect.value);
       state.targetRows = targetRows; state.startTime = performance.now(); state.lastPhase = '';
-      initializeButton.disabled = true; loadingError.hidden = true; loadingScreen.classList.add('is-visible');
+      initializeButton.disabled = true; loadingError.hidden = true; document.querySelector('.app').classList.remove('data-ready'); loadingScreen.classList.add('is-visible');
       loadingTitle.textContent = `Intercepting ${targetRows.toLocaleString()} Gaia geodesics...`;
       loadingCopy.textContent = 'Fetching real Gaia DR3 rows in browser-safe pages. The console reports route attempts, parsing, speed and ETA.';
       setStatus('Linking'); setProgress(1, 'OPENING GAIA TAP CHANNEL'); engineState.textContent = 'DATASTREAM ACTIVE'; bufferState.textContent = 'ALLOCATING';
@@ -539,7 +637,7 @@
       state.bridge = new GaiaDataBridge({ targetRows, pageSize: 10000, onProgress: updateTelemetry });
       try {
         const dataset = await state.bridge.fetchStars();
-        state.dataset = dataset; window.__GAIA_DATASET__ = dataset;
+        state.dataset = dataset; window.__GAIA_DATASET__ = dataset; document.querySelector('.app').classList.add('data-ready');
         setProgress(100, 'GPU BUFFERS READY'); setStatus('Locked'); engineState.textContent='DATA READY'; bufferState.textContent=`${dataset.count.toLocaleString()} STARS`; loadingScreen.classList.remove('is-visible');
         updateTelemetry({ parsedRows: dataset.telemetry.parsedRows, acceptedRows: dataset.count, rejectedRows: dataset.telemetry.rejectedRows, progress: 100, phase: 'GPU BUFFERS READY' });
         log(`Dataset ready: ${dataset.count.toLocaleString()} stars packed into Float32Array buffers`, 'success');

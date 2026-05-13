@@ -162,3 +162,60 @@ button, input, select, code { font-family: inherit; }
   .mode-toggle label { min-height: 40px; }
   .mode-toggle input:checked + label { color: var(--cyan); background: rgba(53,242,208,0.10); }
 }
+
+
+/* Final polish: keep the cinematic glow while streaming, then quiet the background once data is ready. */
+.app.data-ready .viewport-grid {
+  opacity: 0.34;
+  background-image:
+    linear-gradient(rgba(53,242,208,0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(53,242,208,0.028) 1px, transparent 1px);
+}
+
+.app.data-ready .viewport-shell {
+  background: #01040a;
+}
+
+.science-caption {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  width: min(440px, calc(100% - 36px));
+  border: 1px solid rgba(53,242,208,0.16);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(2,6,23,0.55);
+  backdrop-filter: blur(10px);
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.45;
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+.science-caption strong {
+  display: block;
+  color: rgba(53,242,208,0.92);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.science-caption span {
+  display: block;
+}
+
+.loading-screen.is-visible ~ .science-caption,
+.app:not(.data-ready) .science-caption {
+  opacity: 0;
+}
+
+.app.data-ready .loading-screen {
+  background: rgba(1,2,4,0.04);
+}
+
+@media (max-width: 1180px) {
+  .science-caption { display: none; }
+}
