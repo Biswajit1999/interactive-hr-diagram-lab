@@ -1,0 +1,18 @@
+-- Gaia DR3 H–R diagram query
+-- Use this in the ESA Gaia Archive TAP/ADQL interface.
+-- Download the result as CSV and save it as:
+-- data/gaia_sample.csv
+
+SELECT TOP 10000
+    source_id,
+    ra,
+    dec,
+    parallax,
+    parallax_over_error,
+    bp_rp,
+    phot_g_mean_mag
+FROM gaiadr3.gaia_source
+WHERE parallax > 2
+  AND parallax_over_error > 20
+  AND bp_rp IS NOT NULL
+  AND phot_g_mean_mag IS NOT NULL
