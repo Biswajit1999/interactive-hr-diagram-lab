@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Gaia DR3 Galactic Explorer & H–R Engine</title>
+  <meta
+    name="description"
+    content="Mission-control interface for a Gaia DR3 H–R diagram and 3D galactic explorer."
+  />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+  <div class="monitor-noise" aria-hidden="true"></div>
+  <div class="monitor-scanlines" aria-hidden="true"></div>
+
+  <main class="app" data-mode="hr">
+    <header class="topbar">
+      <div class="brand">
+        <span class="eyebrow">ESA GAIA DR3 / MISSION CONTROL</span>
+        <h1>Gaia Galactic Explorer <em>&</em> H–R Engine</h1>
+        <p>
+          Real Gaia DR3 catalogue rows → parallax distances → Cartesian point cloud →
+          H–R diagram buffers. No fake stars.
+        </p>
+      </div>
+
+      <div class="top-actions">
+        <button id="initialize-stream" class="arm-button" type="button">
+          <span class="arm-dot"></span>
+          <span>Initialize Gaia Datastream</span>
+        </button>
+
+        <div class="mode-toggle" role="group" aria-label="View mode">
+          <input id="mode-hr" type="radio" name="view-mode" value="hr" checked />
+          <label for="mode-hr">2D H–R Plot</label>
+
+          <input id="mode-galaxy" type="radio" name="view-mode" value="galaxy" />
+          <label for="mode-galaxy">3D Galactic Map</label>
+
+          <span class="mode-toggle-indicator"></span>
+        </div>
+      </div>
+    </header>
+
+    <aside class="panel sidebar-left">
+      <section class="panel-section">
+        <h2>Datastream Target</h2>
+
+        <div class="target-box">
+          <label for="row-limit">Rows requested</label>
+          <select id="row-limit">
+            <option value="10000">10,000 test mode</option>
+            <option value="50000" selected>50,000 stable mode</option>
+            <option value="100000">100,000 heavy mode</option>
+            <option value="250000">250,000 very heavy</option>
+            <option value="1000000">1,000,000 full mission</option>
+          </select>
+          <p>
+            Start with 10k or 50k to test the pipeline. One million rows can be slow and may be
+            blocked by browser memory/network limits.
+          </p>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <h2>ADQL Query</h2>
+        <pre class="query-box"><code id="query-preview"></code></pre>
+      </section>
+
+      <section class="panel-section">
+        <h2>GPU Buffer Layout</h2>
+
+        <div class="buffer-list">
+          <div>
+            <span>positions</span>
+            <strong>Float32Array · x/y/z</strong>
+          </div>
+          <div>
+            <span>hr</span>
+            <strong>Float32Array · BP-RP/M<sub>G</sub></strong>
+          </div>
+          <div>
+            <span>photometry</span>
+            <strong>Float32Array · ra/dec/parallax/G/d</strong>
+          </div>
+        </div>
+      </section>
+    </aside>
+
+    <section class="viewport-shell">
+      <canvas id="webgl-canvas" class="webgl-canvas"></canvas>
+
+      <div class="viewport-grid" aria-hidden="true"></div>
+
+      <div class="viewport-hud">
+        <div>
+          <span>VIEWPORT</span>
+          <strong id="viewport-mode-readout">2D H–R PLOT</strong>
+        </div>
+        <div>
+          <span>ENGINE</span>
+          <strong id="engine-state">AWAITING RENDERER</strong>
+        </div>
+        <div>
+          <span>BUFFER</span>
+          <strong id="buffer-state">EMPTY</strong>
+        </div>
+      </div>
+
+      <div id="loading-screen" class="loading-screen is-visible">
+        <div class="loading-card">
+          <span class="eyebrow">DATA PIPELINE</span>
+          <h2 id="loading-title">Ready to intercept Gaia geodesics</h2>
+          <p id="loading-copy">
+            Click the initialize button above. The console on the right will show speed,
+            elapsed time, estimated time remaining, parsed rows and loaded stars.
+          </p>
+
+          <div class="progress-wrap">
+            <div id="loading-progress-bar" class="progress-bar"></div>
+          </div>
+
+          <div class="progress-meta">
+            <span id="loading-phase">STANDBY</span>
+            <span id="loading-percent">0%</span>
+          </div>
+
+          <div id="loading-error" class="error-box" hidden></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel sidebar-right">
+      <section class="panel-section">
+        <h2>Telemetry</h2>
+
+        <div class="metric-grid">
+          <div class="metric">
+            <span>Status</span>
+            <strong id="stream-status">Idle</strong>
+          </div>
+          <div class="metric">
+            <span>Progress</span>
+            <strong id="progress-readout">0%</strong>
+          </div>
+          <div class="metric">
+            <span>Rows parsed</span>
+            <strong id="rows-parsed">0</strong>
+          </div>
+          <div class="metric">
+            <span>Stars loaded</span>
+            <strong id="stars-loaded">0</strong>
+          </div>
+          <div class="metric">
+            <span>Rejected</span>
+            <strong id="rows-rejected">0</strong>
+          </div>
+          <div class="metric">
+            <span>Speed</span>
+            <strong id="speed-readout">0 rows/s</strong>
+          </div>
+          <div class="metric">
+            <span>Elapsed</span>
+            <strong id="elapsed-readout">00:00</strong>
+          </div>
+          <div class="metric">
+            <span>ETA</span>
+            <strong id="eta-readout">--:--</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-section console-section">
+        <div class="console-header">
+          <h2>Live Console</h2>
+          <button id="clear-console" type="button">Clear</button>
+        </div>
+
+        <div id="console-log" class="console-log" aria-live="polite"></div>
+      </section>
+    </aside>
+
+    <footer class="footer">
+      <span>© 2026 Biswajit Jana</span>
+      <span id="footer-status">STANDBY</span>
+      <span>Gaia DR3 Galactic Explorer Starter</span>
+    </footer>
+  </main>
+
+  <script type="module">
+    import {
+      GaiaDataBridge,
+      buildGaiaQuery,
+      formatTelemetryNumber,
+      formatDuration
+    } from "./gaia-api.js";
+
+    const canvas = document.getElementById("webgl-canvas");
+    const ctx = canvas.getContext("2d");
+
+    const initializeButton = document.getElementById("initialize-stream");
+    const clearConsoleButton = document.getElementById("clear-console");
+    const rowLimitSelect = document.getElementById("row-limit");
+    const queryPreview = document.getElementById("query-preview");
+
+    const loadingScreen = document.getElementById("loading-screen");
+    const loadingTitle = document.getElementById("loading-title");
+    const loadingCopy = document.getElementById("loading-copy");
+    const loadingPhase = document.getElementById("loading-phase");
+    const loadingPercent = document.getElementById("loading-percent");
+    const loadingProgressBar = document.getElementById("loading-progress-bar");
+    const loadingError = document.getElementById("loading-error");
+
+    const streamStatus = document.getElementById("stream-status");
+    const progressReadout = document.getElementById("progress-readout");
+    const rowsParsed = document.getElementById("rows-parsed");
+    const starsLoaded = document.getElementById("stars-loaded");
+    const rowsRejected = document.getElementById("rows-rejected");
+    const speedReadout = document.getElementById("speed-readout");
+    const elapsedReadout = document.getElementById("elapsed-readout");
+    const etaReadout = document.getElementById("eta-readout");
+    const footerStatus = document.getElementById("footer-status");
+    const engineState = document.getElementById("engine-state");
+    const bufferState = document.getElementById("buffer-state");
+    const viewportModeReadout = document.getElementById("viewport-mode-readout");
+    const consoleLog = document.getElementById("console-log");
+
+    const modeInputs = document.querySelectorAll("input[name='view-mode']");
+
+    const state = {
+      dataset: null,
+      bridge: null,
+      startTime: null,
+      targetRows: Number(rowLimitSelect.value),
+      lastParsedRows: 0,
+      lastProgressTime: performance.now(),
+      mode: "hr",
+      width: 1000,
+      height: 700,
+      dpr: 1,
+      mouse: null,
+      hover: null,
+      galaxyAngle: 0,
+      animationId: null
+    };
+
+    function updateQueryPreview() {
+      queryPreview.textContent = buildGaiaQuery(Number(rowLimitSelect.value));
+    }
+
+    function log(message, type = "info") {
+      const line = document.createElement("div");
+      line.className = `console-line console-line--${type}`;
+      const time = new Date().toLocaleTimeString();
+      line.innerHTML = `<span>${time}</span><strong>${message}</strong>`;
+      consoleLog.appendChild(line);
+      consoleLog.scrollTop = consoleLog.scrollHeight;
+    }
+
+    function setProgress(progress, phase = "PROCESSING") {
+      const pct = Math.max(0, Math.min(100, Number(progress) || 0));
+      loadingProgressBar.style.width = `${pct}%`;
+      loadingPercent.textContent = `${pct.toFixed(0)}%`;
+      progressReadout.textContent = `${pct.toFixed(0)}%`;
+      loadingPhase.textContent = phase;
+    }
+
+    function setStatus(status) {
+      streamStatus.textContent = status;
+      footerStatus.textContent = status.toUpperCase();
+    }
+
+    function updateTiming(parsedRows, progress) {
+      if (!state.startTime) {
+        elapsedReadout.textContent = "00:00";
+        etaReadout.textContent = "--:--";
+        speedReadout.textContent = "0 rows/s";
+        return;
+      }
+
+      const now = performance.now();
+      const elapsedMs = now - state.startTime;
+      const elapsedSec = Math.max(0.001, elapsedMs / 1000);
+      const speed = parsedRows / elapsedSec;
+
+      elapsedReadout.textContent = formatDuration(elapsedMs);
+      speedReadout.textContent = `${formatTelemetryNumber(speed)} rows/s`;
+
+      if (progress > 0 && progress < 100) {
+        const totalEstimateMs = elapsedMs / (progress / 100);
+        const remainingMs = Math.max(0, totalEstimateMs - elapsedMs);
+        etaReadout.textContent = formatDuration(remainingMs);
+      } else {
+        etaReadout.textContent = progress >= 100 ? "00:00" : "--:--";
+      }
+    }
+
+    function updateTelemetry(event = {}) {
+      const parsed = event.parsedRows ?? 0;
+      const accepted = event.acceptedRows ?? event.loadedRows ?? state.dataset?.count ?? 0;
+      const rejected = event.rejectedRows ?? 0;
+      const progress = event.progress ?? 0;
+
+      rowsParsed.textContent = formatTelemetryNumber(parsed);
+      starsLoaded.textContent = formatTelemetryNumber(accepted);
+      rowsRejected.textContent = formatTelemetryNumber(rejected);
+
+      setProgress(progress, event.phase || "PROCESSING");
+      updateTiming(parsed, progress);
+
+      if (event.phase && event.phase !== state.lastPhase) {
+        state.lastPhase = event.phase;
+        log(event.phase);
+      }
+    }
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      state.width = Math.max(1, rect.width);
+      state.height = Math.max(1, rect.height);
+      state.dpr = dpr;
+
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawScene();
+    }
+
+    function clearCanvas() {
+      const w = state.width;
+      const h = state.height;
+
+      const gradient = ctx.createRadialGradient(w * 0.52, h * 0.46, 20, w * 0.52, h * 0.46, Math.max(w, h) * 0.72);
+      gradient.addColorStop(0, "rgba(53,242,208,0.085)");
+      gradient.addColorStop(0.45, "rgba(5,20,30,0.36)");
+      gradient.addColorStop(1, "rgba(1,2,4,1)");
+
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.strokeStyle = "rgba(53,242,208,0.08)";
+      ctx.lineWidth = 1;
+      for (let x = 0; x < w; x += 44) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+      for (let y = 0; y < h; y += 44) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+    }
+
+    function drawPlaceholder() {
+      clearCanvas();
+
+      ctx.fillStyle = "rgba(234,242,255,0.72)";
+      ctx.font = "700 16px JetBrains Mono, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("Load Gaia data to render the H–R diagram or Galactic projection", state.width / 2, state.height / 2);
+    }
+
+    function starColourFromBpRp(bpRp, alpha = 0.8) {
+      const t = Math.max(0, Math.min(1, (bpRp + 0.4) / 4.4));
+      let r, g, b;
+
+      if (t < 0.25) {
+        const u = t / 0.25;
+        r = 90 + 120 * u;
+        g = 155 + 90 * u;
+        b = 255;
+      } else if (t < 0.48) {
+        const u = (t - 0.25) / 0.23;
+        r = 210 + 45 * u;
+        g = 245 + 10 * u;
+        b = 255 - 120 * u;
+      } else if (t < 0.72) {
+        const u = (t - 0.48) / 0.24;
+        r = 255;
+        g = 255 - 78 * u;
+        b = 135 - 90 * u;
+      } else {
+        const u = (t - 0.72) / 0.28;
+        r = 255;
+        g = 177 - 105 * u;
+        b = 45 - 25 * u;
+      }
+
+      return `rgba(${r | 0},${g | 0},${b | 0},${alpha})`;
+    }
+
+    function plotBounds() {
+      return {
+        left: Math.max(76, state.width * 0.07),
+        right: state.width - Math.max(44, state.width * 0.045),
+        top: Math.max(58, state.height * 0.08),
+        bottom: state.height - Math.max(68, state.height * 0.09)
+      };
+    }
+
+    function xHr(bpRp, bounds) {
+      const xMin = -0.5;
+      const xMax = 4.5;
+      return bounds.left + (bpRp - xMin) / (xMax - xMin) * (bounds.right - bounds.left);
+    }
+
+    function yHr(MG, bounds) {
+      const yMin = -5;
+      const yMax = 16;
+      return bounds.top + (MG - yMin) / (yMax - yMin) * (bounds.bottom - bounds.top);
+    }
+
+    function invXHr(x, bounds) {
+      return -0.5 + (x - bounds.left) / (bounds.right - bounds.left) * 5.0;
+    }
+
+    function invYHr(y, bounds) {
+      return -5 + (y - bounds.top) / (bounds.bottom - bounds.top) * 21.0;
+    }
+
+    function drawAxes(bounds, title) {
+      ctx.save();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.strokeStyle = "rgba(148,163,184,0.16)";
+      ctx.fillStyle = "rgba(234,242,255,0.78)";
+      ctx.lineWidth = 1;
+      ctx.font = "700 11px JetBrains Mono, monospace";
+
+      for (let i = 0; i <= 10; i++) {
+        const x = bounds.left + i / 10 * (bounds.right - bounds.left);
+        ctx.beginPath();
+        ctx.moveTo(x, bounds.top);
+        ctx.lineTo(x, bounds.bottom);
+        ctx.stroke();
+      }
+
+      for (let i = 0; i <= 8; i++) {
+        const y = bounds.top + i / 8 * (bounds.bottom - bounds.top);
+        ctx.beginPath();
+        ctx.moveTo(bounds.left, y);
+        ctx.lineTo(bounds.right, y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = "rgba(234,242,255,0.45)";
+      ctx.strokeRect(bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top);
+
+      ctx.fillStyle = "rgba(53,242,208,0.95)";
+      ctx.textAlign = "center";
+      ctx.font = "900 13px JetBrains Mono, monospace";
+      ctx.fillText(title, (bounds.left + bounds.right) / 2, bounds.top - 26);
+
+      ctx.font = "800 11px JetBrains Mono, monospace";
+      ctx.fillText("BP–RP colour index", (bounds.left + bounds.right) / 2, bounds.bottom + 44);
+
+      ctx.save();
+      ctx.translate(bounds.left - 52, (bounds.top + bounds.bottom) / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText("Absolute Gaia G magnitude  M_G", 0, 0);
+      ctx.restore();
+
+      ctx.fillStyle = "rgba(234,242,255,0.72)";
+      ctx.textAlign = "center";
+      for (let xVal = 0; xVal <= 4; xVal += 1) {
+        ctx.fillText(String(xVal), xHr(xVal, bounds), bounds.bottom + 22);
+      }
+
+      ctx.textAlign = "right";
+      for (let yVal = -5; yVal <= 15; yVal += 5) {
+        ctx.fillText(String(yVal), bounds.left - 12, yHr(yVal, bounds) + 4);
+      }
+
+      ctx.fillStyle = "rgba(53,242,208,0.28)";
+      ctx.textAlign = "left";
+      ctx.fillText("MAIN SEQUENCE", xHr(0.75, bounds), yHr(5.2, bounds));
+      ctx.fillStyle = "rgba(255,122,61,0.34)";
+      ctx.fillText("RED GIANTS", xHr(1.35, bounds), yHr(0.0, bounds));
+      ctx.fillStyle = "rgba(101,168,255,0.32)";
+      ctx.fillText("WHITE DWARFS", xHr(0.0, bounds), yHr(12.5, bounds));
+
+      ctx.restore();
+    }
+
+    function drawHRDiagram() {
+      if (!state.dataset) {
+        drawPlaceholder();
+        return;
+      }
+
+      clearCanvas();
+
+      const bounds = plotBounds();
+      drawAxes(bounds, `Gaia DR3 H–R diagram · ${state.dataset.count.toLocaleString()} stars`);
+
+      const hr = state.dataset.hr;
+      const photometry = state.dataset.photometry;
+      const count = state.dataset.count;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top);
+      ctx.clip();
+
+      ctx.globalCompositeOperation = "lighter";
+
+      for (let i = 0; i < count; i++) {
+        const bpRp = hr[i * 2];
+        const MG = hr[i * 2 + 1];
+
+        const x = xHr(bpRp, bounds);
+        const y = yHr(MG, bounds);
+
+        if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) continue;
+
+        const alpha = 0.055;
+        ctx.fillStyle = starColourFromBpRp(bpRp, alpha);
+        ctx.fillRect(x, y, 1.35, 1.35);
+      }
+
+      ctx.restore();
+      ctx.globalCompositeOperation = "source-over";
+
+      if (state.mouse) drawHoverInfo(bounds);
+    }
+
+    function drawHoverInfo(bounds) {
+      const x = state.mouse.x;
+      const y = state.mouse.y;
+      if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) return;
+
+      const bp = invXHr(x, bounds);
+      const MG = invYHr(y, bounds);
+
+      ctx.save();
+      ctx.strokeStyle = "rgba(53,242,208,0.45)";
+      ctx.setLineDash([6, 7]);
+      ctx.beginPath();
+      ctx.moveTo(x, bounds.top);
+      ctx.lineTo(x, bounds.bottom);
+      ctx.moveTo(bounds.left, y);
+      ctx.lineTo(bounds.right, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const L = Math.pow(10, (4.67 - MG) / 2.5);
+
+      const boxW = 245;
+      const boxH = 95;
+      let bx = x + 16;
+      let by = y + 16;
+      if (bx + boxW > state.width - 20) bx = x - boxW - 16;
+      if (by + boxH > state.height - 20) by = y - boxH - 16;
+
+      ctx.fillStyle = "rgba(2,6,23,0.84)";
+      ctx.strokeStyle = "rgba(53,242,208,0.30)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, boxW, boxH, 14);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(53,242,208,0.95)";
+      ctx.font = "900 11px JetBrains Mono, monospace";
+      ctx.textAlign = "left";
+      ctx.fillText("CROSSHAIR TELEMETRY", bx + 14, by + 24);
+
+      ctx.fillStyle = "rgba(234,242,255,0.82)";
+      ctx.font = "700 11px JetBrains Mono, monospace";
+      ctx.fillText(`BP–RP: ${bp.toFixed(3)}`, bx + 14, by + 48);
+      ctx.fillText(`M_G:   ${MG.toFixed(3)}`, bx + 14, by + 66);
+      ctx.fillText(`L/L☉:  ${L.toExponential(2)}`, bx + 14, by + 84);
+
+      ctx.restore();
+    }
+
+    function drawGalaxyMap() {
+      if (!state.dataset) {
+        drawPlaceholder();
+        return;
+      }
+
+      clearCanvas();
+
+      const w = state.width;
+      const h = state.height;
+      const positions = state.dataset.positions;
+      const hr = state.dataset.hr;
+      const count = state.dataset.count;
+      const cx = w / 2;
+      const cy = h / 2;
+      const scale = Math.min(w, h) * 0.42 / 520;
+
+      state.galaxyAngle += 0.0025;
+      const angle = state.galaxyAngle;
+      const cosA = Math.cos(angle);
+      const sinA = Math.sin(angle);
+
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+
+      for (let i = 0; i < count; i++) {
+        const px = positions[i * 3];
+        const py = positions[i * 3 + 1];
+        const pz = positions[i * 3 + 2];
+
+        const xRot = px * cosA - py * sinA;
+        const yRot = px * sinA + py * cosA;
+
+        const x = cx + xRot * scale;
+        const y = cy + (pz * 0.85) * scale;
+
+        if (x < 0 || x > w || y < 0 || y > h) continue;
+
+        const bpRp = hr[i * 2];
+        ctx.fillStyle = starColourFromBpRp(bpRp, 0.075);
+        ctx.fillRect(x, y, 1.2, 1.2);
+      }
+
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.strokeStyle = "rgba(53,242,208,0.22)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, Math.min(w, h) * 0.43, Math.min(w, h) * 0.18, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(53,242,208,0.95)";
+      ctx.font = "900 13px JetBrains Mono, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(`Local Gaia point-cloud projection · ${count.toLocaleString()} stars`, cx, 38);
+
+      ctx.fillStyle = "rgba(234,242,255,0.68)";
+      ctx.font = "700 11px JetBrains Mono, monospace";
+      ctx.fillText("Rotating RA/Dec/parallax projection — true spatial positions from Gaia parallax", cx, h - 32);
+      ctx.restore();
+
+      if (state.mode === "galaxy") {
+        state.animationId = requestAnimationFrame(drawScene);
+      }
+    }
+
+    function drawScene() {
+      if (state.animationId) {
+        cancelAnimationFrame(state.animationId);
+        state.animationId = null;
+      }
+
+      if (state.mode === "hr") {
+        drawHRDiagram();
+      } else {
+        drawGalaxyMap();
+      }
+    }
+
+    async function initializeDatastream() {
+      const targetRows = Number(rowLimitSelect.value);
+      state.targetRows = targetRows;
+      state.startTime = performance.now();
+      state.lastPhase = "";
+
+      initializeButton.disabled = true;
+      loadingError.hidden = true;
+      loadingScreen.classList.add("is-visible");
+
+      loadingTitle.textContent = `Intercepting ${targetRows.toLocaleString()} Gaia geodesics...`;
+      loadingCopy.textContent = "Fetching real Gaia DR3 rows. The console will report network, parsing, buffer packing, speed and ETA.";
+      setStatus("Linking");
+      setProgress(1, "OPENING GAIA TAP CHANNEL");
+      engineState.textContent = "DATASTREAM ACTIVE";
+      bufferState.textContent = "ALLOCATING";
+      log(`Mission started: requesting ${targetRows.toLocaleString()} Gaia DR3 rows`, "success");
+
+      state.bridge = new GaiaDataBridge({
+        targetRows,
+        query: buildGaiaQuery(targetRows),
+        onProgress: updateTelemetry,
+        tapMode: "auto",
+        preferAsync: false
+      });
+
+      try {
+        const dataset = await state.bridge.fetchMillionStars();
+        state.dataset = dataset;
+        window.__GAIA_DATASET__ = dataset;
+
+        setProgress(100, "GPU BUFFERS READY");
+        setStatus("Locked");
+        engineState.textContent = "DATA READY";
+        bufferState.textContent = `${dataset.count.toLocaleString()} STARS`;
+        loadingScreen.classList.remove("is-visible");
+
+        updateTelemetry({
+          parsedRows: dataset.telemetry.parsedRows,
+          acceptedRows: dataset.count,
+          rejectedRows: dataset.telemetry.rejectedRows,
+          progress: 100,
+          phase: "GPU BUFFERS READY"
+        });
+
+        log(`Dataset ready: ${dataset.count.toLocaleString()} stars packed into Float32Array buffers`, "success");
+        log("Rendering H–R diagram now. Use the toggle to switch to 3D Galactic Map.", "success");
+
+        drawScene();
+
+        window.dispatchEvent(new CustomEvent("gaia:data-ready", {
+          detail: { dataset }
+        }));
+
+      } catch (error) {
+        console.error(error);
+        setStatus("Error");
+        engineState.textContent = "STREAM FAILED";
+        bufferState.textContent = "EMPTY";
+        setProgress(0, "STREAM FAILED");
+
+        loadingError.hidden = false;
+        const message = error?.message || "Unknown Gaia request error.";
+        loadingError.textContent = message;
+        log(message, "error");
+        log("Tip: if this says Failed to fetch, the browser/GitHub Pages is probably blocking the ESA TAP request via CORS. This version tries direct ESA routes and public CORS bridges automatically.", "error");
+
+      } finally {
+        initializeButton.disabled = false;
+      }
+    }
+
+    function bindModeToggle() {
+      for (const input of modeInputs) {
+        input.addEventListener("change", () => {
+          if (!input.checked) return;
+
+          state.mode = input.value;
+          document.querySelector(".app").dataset.mode = input.value;
+          viewportModeReadout.textContent = input.value === "hr" ? "2D H–R PLOT" : "3D GALACTIC MAP";
+          log(`View mode changed: ${viewportModeReadout.textContent}`);
+          drawScene();
+        });
+      }
+    }
+
+    function boot() {
+      updateQueryPreview();
+      resizeCanvas();
+      setStatus("Idle");
+      setProgress(0, "STANDBY");
+      log("Mission Control loaded. Choose row count, then initialize datastream.");
+
+      rowLimitSelect.addEventListener("change", () => {
+        updateQueryPreview();
+        log(`Row target changed to ${Number(rowLimitSelect.value).toLocaleString()}`);
+      });
+
+      initializeButton.addEventListener("click", initializeDatastream);
+      clearConsoleButton.addEventListener("click", () => {
+        consoleLog.innerHTML = "";
+        log("Console cleared.");
+      });
+
+      canvas.addEventListener("mousemove", (event) => {
+        const rect = canvas.getBoundingClientRect();
+        state.mouse = {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top
+        };
+        if (state.mode === "hr") drawScene();
+      });
+
+      canvas.addEventListener("mouseleave", () => {
+        state.mouse = null;
+        if (state.mode === "hr") drawScene();
+      });
+
+      bindModeToggle();
+
+      const ro = new ResizeObserver(resizeCanvas);
+      ro.observe(canvas.parentElement);
+      window.addEventListener("resize", resizeCanvas);
+    }
+
+    boot();
+  </script>
+</body>
+</html>
