@@ -79,3 +79,12 @@ Settings → Pages → Deploy from a branch → main → /root
 - All plotted stars are real Gaia DR3 rows; the app does not generate fake stars.
 
 © 2026 Biswajit Jana. Code may be reused or modified with credit. Gaia catalogue data belongs to the ESA Gaia mission/archive sources.
+
+
+---
+
+## Final browser-fallback note
+
+This GitHub Pages build uses real Gaia DR3 rows and no synthetic fallback data. It first tries the same 10k-style query that worked in the browser, then for larger targets it splits the catalogue request into RA sky slices of at most 10,000 rows per slice. This avoids single huge CSV requests and avoids the `ORDER BY source_id` query that was causing Gaia/CORS bridge failures.
+
+Public CORS bridges are still external services and may fail or rate-limit. For reliable 50k–1M operation, deploy the Node proxy version and connect the frontend to that backend.

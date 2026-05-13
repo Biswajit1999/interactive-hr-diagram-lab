@@ -94,7 +94,7 @@
         <div class="buffer-list">
           <div><span>positions</span><strong>Float32Array · x/y/z</strong></div>
           <div><span>hr</span><strong>Float32Array · BP-RP/M<sub>G</sub></strong></div>
-          <div><span>photometry</span><strong>Float32Array · source/ra/dec/parallax/G/d</strong></div>
+          <div><span>photometry</span><strong>Float32Array · ra/dec/parallax/G/d</strong></div>
         </div>
       </section>
     </aside>
@@ -214,7 +214,7 @@
     };
 
     function updateQueryPreview() {
-      queryPreview.textContent = buildGaiaQuery(Number(rowLimitSelect.value), 'chunked by source_id');
+      queryPreview.textContent = buildGaiaQuery(Number(rowLimitSelect.value), 'browser segmented');
     }
 
     function log(message, type = 'info') {
