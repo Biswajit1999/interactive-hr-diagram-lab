@@ -16,7 +16,7 @@ https://biswajit1999.github.io/interactive-hr-diagram-lab/
 
 ## Preview
 
-![Classic H–R reference preview](images/classic-hr-reference.png)
+![Classic H–R reference preview](images/My Version of HR diagram for webpage.png)
 
 ---
 
@@ -281,11 +281,24 @@ Possible future improvements:
 
 ---
 
+## Offline Python plotting
+
+Users who prefer working with downloaded Gaia CSV files can reproduce the H–R diagram locally.
+
+1. Run the ADQL query in `queries/gaia_hr_query_10k.adql`.
+2. Download the result as CSV.
+3. Save it as:
+
+```text
+data/gaia_sample.csv
+```
+
 ## Acknowledgements
 
 This project uses data from the **European Space Agency Gaia mission** and the **Gaia Data Processing and Analysis Consortium (DPAC)**.
 
 Created by **Biswajit Jana** as part of an academic and scientific computing portfolio.
+
 
 ---
 
