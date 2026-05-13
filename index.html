@@ -3,23 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <title>Gaia DR3 Galactic Explorer & H–R Engine</title>
-  <meta
-    name="description"
-    content="Mission-control interface for a Gaia DR3 H–R diagram and 3D galactic explorer."
-  />
-
+  <title>Gaia Galactic Explorer & H–R Engine</title>
+  <meta name="description" content="A real Gaia DR3 H–R diagram laboratory with template overlays, Sun marker, and Galactic projection." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap"
-    rel="stylesheet"
-  />
-
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
-
 <body>
   <div class="monitor-noise" aria-hidden="true"></div>
   <div class="monitor-scanlines" aria-hidden="true"></div>
@@ -29,10 +19,7 @@
       <div class="brand">
         <span class="eyebrow">ESA GAIA DR3 / MISSION CONTROL</span>
         <h1>Gaia Galactic Explorer <em>&</em> H–R Engine</h1>
-        <p>
-          Real Gaia DR3 catalogue rows → parallax distances → Cartesian point cloud →
-          H–R diagram buffers. No fake stars.
-        </p>
+        <p>Real Gaia DR3 catalogue rows → parallax distances → absolute magnitudes → H–R diagram + local Galactic projection. No fake stars.</p>
       </div>
 
       <div class="top-actions">
@@ -44,10 +31,8 @@
         <div class="mode-toggle" role="group" aria-label="View mode">
           <input id="mode-hr" type="radio" name="view-mode" value="hr" checked />
           <label for="mode-hr">2D H–R Plot</label>
-
           <input id="mode-galaxy" type="radio" name="view-mode" value="galaxy" />
           <label for="mode-galaxy">3D Galactic Map</label>
-
           <span class="mode-toggle-indicator"></span>
         </div>
       </div>
@@ -56,20 +41,46 @@
     <aside class="panel sidebar-left">
       <section class="panel-section">
         <h2>Datastream Target</h2>
-
         <div class="target-box">
           <label for="row-limit">Rows requested</label>
           <select id="row-limit">
-            <option value="10000">10,000 test mode</option>
-            <option value="50000" selected>50,000 stable mode</option>
+            <option value="10000" selected>10,000 test mode</option>
+            <option value="50000">50,000 chunked mode</option>
             <option value="100000">100,000 heavy mode</option>
             <option value="250000">250,000 very heavy</option>
             <option value="1000000">1,000,000 full mission</option>
           </select>
-          <p>
-            Start with 10k or 50k to test the pipeline. One million rows can be slow and may be
-            blocked by browser memory/network limits.
-          </p>
+          <p>GitHub Pages uses browser-side CORS bridges. For large modes, this build requests Gaia in 10k pages instead of one giant CSV to avoid HTTP 413 payload failures.</p>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <h2>Scientific Layers</h2>
+        <div class="target-box">
+          <label for="colour-template">Colour template</label>
+          <select id="colour-template">
+            <option value="gaia" selected>Gaia stellar colours</option>
+            <option value="classic">Classic textbook B–V</option>
+            <option value="density">Density glow</option>
+            <option value="mono">Research monochrome</option>
+          </select>
+
+          <label for="overlay-template" class="control-spacer">Overlay template</label>
+          <select id="overlay-template">
+            <option value="clean" selected>Clean Gaia view</option>
+            <option value="textbook">Textbook regions</option>
+            <option value="annotated">Annotated observatory</option>
+          </select>
+
+          <div class="layer-toggle-row">
+            <label class="mini-toggle"><input id="show-sun" type="checkbox" checked><span></span>Show Sun</label>
+            <label class="mini-toggle"><input id="show-regions" type="checkbox" checked><span></span>Region labels</label>
+            <label class="mini-toggle"><input id="show-luminosity" type="checkbox" checked><span></span>Luminosity axis</label>
+          </div>
+
+          <button id="export-png" class="secondary-button" type="button">Export current view PNG</button>
+
+          <p>The Sun is plotted at BP–RP ≈ 0.82 and M<sub>G</sub> ≈ 4.67. Templates change only the display layer; the Gaia rows remain unchanged.</p>
         </div>
       </section>
 
@@ -80,62 +91,31 @@
 
       <section class="panel-section">
         <h2>GPU Buffer Layout</h2>
-
         <div class="buffer-list">
-          <div>
-            <span>positions</span>
-            <strong>Float32Array · x/y/z</strong>
-          </div>
-          <div>
-            <span>hr</span>
-            <strong>Float32Array · BP-RP/M<sub>G</sub></strong>
-          </div>
-          <div>
-            <span>photometry</span>
-            <strong>Float32Array · ra/dec/parallax/G/d</strong>
-          </div>
+          <div><span>positions</span><strong>Float32Array · x/y/z</strong></div>
+          <div><span>hr</span><strong>Float32Array · BP-RP/M<sub>G</sub></strong></div>
+          <div><span>photometry</span><strong>Float32Array · source/ra/dec/parallax/G/d</strong></div>
         </div>
       </section>
     </aside>
 
     <section class="viewport-shell">
       <canvas id="webgl-canvas" class="webgl-canvas"></canvas>
-
       <div class="viewport-grid" aria-hidden="true"></div>
 
       <div class="viewport-hud">
-        <div>
-          <span>VIEWPORT</span>
-          <strong id="viewport-mode-readout">2D H–R PLOT</strong>
-        </div>
-        <div>
-          <span>ENGINE</span>
-          <strong id="engine-state">AWAITING RENDERER</strong>
-        </div>
-        <div>
-          <span>BUFFER</span>
-          <strong id="buffer-state">EMPTY</strong>
-        </div>
+        <div><span>VIEWPORT</span><strong id="viewport-mode-readout">2D H–R PLOT</strong></div>
+        <div><span>ENGINE</span><strong id="engine-state">AWAITING DATA</strong></div>
+        <div><span>BUFFER</span><strong id="buffer-state">EMPTY</strong></div>
       </div>
 
       <div id="loading-screen" class="loading-screen is-visible">
         <div class="loading-card">
           <span class="eyebrow">DATA PIPELINE</span>
           <h2 id="loading-title">Ready to intercept Gaia geodesics</h2>
-          <p id="loading-copy">
-            Click the initialize button above. The console on the right will show speed,
-            elapsed time, estimated time remaining, parsed rows and loaded stars.
-          </p>
-
-          <div class="progress-wrap">
-            <div id="loading-progress-bar" class="progress-bar"></div>
-          </div>
-
-          <div class="progress-meta">
-            <span id="loading-phase">STANDBY</span>
-            <span id="loading-percent">0%</span>
-          </div>
-
+          <p id="loading-copy">Choose a row count, then click initialize. The console reports route attempts, page number, parsing, speed and ETA.</p>
+          <div class="progress-wrap"><div id="loading-progress-bar" class="progress-bar"></div></div>
+          <div class="progress-meta"><span id="loading-phase">STANDBY</span><span id="loading-percent">0%</span></div>
           <div id="loading-error" class="error-box" hidden></div>
         </div>
       </div>
@@ -144,49 +124,20 @@
     <aside class="panel sidebar-right">
       <section class="panel-section">
         <h2>Telemetry</h2>
-
         <div class="metric-grid">
-          <div class="metric">
-            <span>Status</span>
-            <strong id="stream-status">Idle</strong>
-          </div>
-          <div class="metric">
-            <span>Progress</span>
-            <strong id="progress-readout">0%</strong>
-          </div>
-          <div class="metric">
-            <span>Rows parsed</span>
-            <strong id="rows-parsed">0</strong>
-          </div>
-          <div class="metric">
-            <span>Stars loaded</span>
-            <strong id="stars-loaded">0</strong>
-          </div>
-          <div class="metric">
-            <span>Rejected</span>
-            <strong id="rows-rejected">0</strong>
-          </div>
-          <div class="metric">
-            <span>Speed</span>
-            <strong id="speed-readout">0 rows/s</strong>
-          </div>
-          <div class="metric">
-            <span>Elapsed</span>
-            <strong id="elapsed-readout">00:00</strong>
-          </div>
-          <div class="metric">
-            <span>ETA</span>
-            <strong id="eta-readout">--:--</strong>
-          </div>
+          <div class="metric"><span>Status</span><strong id="stream-status">Idle</strong></div>
+          <div class="metric"><span>Progress</span><strong id="progress-readout">0%</strong></div>
+          <div class="metric"><span>Rows parsed</span><strong id="rows-parsed">0</strong></div>
+          <div class="metric"><span>Stars loaded</span><strong id="stars-loaded">0</strong></div>
+          <div class="metric"><span>Rejected</span><strong id="rows-rejected">0</strong></div>
+          <div class="metric"><span>Speed</span><strong id="speed-readout">0 rows/s</strong></div>
+          <div class="metric"><span>Elapsed</span><strong id="elapsed-readout">00:00</strong></div>
+          <div class="metric"><span>ETA</span><strong id="eta-readout">--:--</strong></div>
         </div>
       </section>
 
       <section class="panel-section console-section">
-        <div class="console-header">
-          <h2>Live Console</h2>
-          <button id="clear-console" type="button">Clear</button>
-        </div>
-
+        <div class="console-header"><h2>Live Console</h2><button id="clear-console" type="button">Clear</button></div>
         <div id="console-log" class="console-log" aria-live="polite"></div>
       </section>
     </aside>
@@ -194,73 +145,80 @@
     <footer class="footer">
       <span>© 2026 Biswajit Jana</span>
       <span id="footer-status">STANDBY</span>
-      <span>Gaia DR3 Galactic Explorer Starter</span>
+      <span>Gaia DR3 Galactic Explorer · template overlays + Sun marker</span>
     </footer>
   </main>
 
+  <script type="module" src="./gaia-api.js"></script>
   <script type="module">
-    import {
-      GaiaDataBridge,
-      buildGaiaQuery,
-      formatTelemetryNumber,
-      formatDuration
-    } from "./gaia-api.js";
+    import { GaiaDataBridge, buildGaiaQuery, formatTelemetryNumber, formatDuration } from './gaia-api.js';
 
-    const canvas = document.getElementById("webgl-canvas");
-    const ctx = canvas.getContext("2d");
+    const canvas = document.getElementById('webgl-canvas');
+    const ctx = canvas.getContext('2d');
 
-    const initializeButton = document.getElementById("initialize-stream");
-    const clearConsoleButton = document.getElementById("clear-console");
-    const rowLimitSelect = document.getElementById("row-limit");
-    const queryPreview = document.getElementById("query-preview");
+    const initializeButton = document.getElementById('initialize-stream');
+    const clearConsoleButton = document.getElementById('clear-console');
+    const exportButton = document.getElementById('export-png');
+    const rowLimitSelect = document.getElementById('row-limit');
+    const queryPreview = document.getElementById('query-preview');
 
-    const loadingScreen = document.getElementById("loading-screen");
-    const loadingTitle = document.getElementById("loading-title");
-    const loadingCopy = document.getElementById("loading-copy");
-    const loadingPhase = document.getElementById("loading-phase");
-    const loadingPercent = document.getElementById("loading-percent");
-    const loadingProgressBar = document.getElementById("loading-progress-bar");
-    const loadingError = document.getElementById("loading-error");
+    const colourTemplateSelect = document.getElementById('colour-template');
+    const overlayTemplateSelect = document.getElementById('overlay-template');
+    const showSunInput = document.getElementById('show-sun');
+    const showRegionsInput = document.getElementById('show-regions');
+    const showLuminosityInput = document.getElementById('show-luminosity');
 
-    const streamStatus = document.getElementById("stream-status");
-    const progressReadout = document.getElementById("progress-readout");
-    const rowsParsed = document.getElementById("rows-parsed");
-    const starsLoaded = document.getElementById("stars-loaded");
-    const rowsRejected = document.getElementById("rows-rejected");
-    const speedReadout = document.getElementById("speed-readout");
-    const elapsedReadout = document.getElementById("elapsed-readout");
-    const etaReadout = document.getElementById("eta-readout");
-    const footerStatus = document.getElementById("footer-status");
-    const engineState = document.getElementById("engine-state");
-    const bufferState = document.getElementById("buffer-state");
-    const viewportModeReadout = document.getElementById("viewport-mode-readout");
-    const consoleLog = document.getElementById("console-log");
+    const loadingScreen = document.getElementById('loading-screen');
+    const loadingTitle = document.getElementById('loading-title');
+    const loadingCopy = document.getElementById('loading-copy');
+    const loadingPhase = document.getElementById('loading-phase');
+    const loadingPercent = document.getElementById('loading-percent');
+    const loadingProgressBar = document.getElementById('loading-progress-bar');
+    const loadingError = document.getElementById('loading-error');
 
+    const streamStatus = document.getElementById('stream-status');
+    const progressReadout = document.getElementById('progress-readout');
+    const rowsParsed = document.getElementById('rows-parsed');
+    const starsLoaded = document.getElementById('stars-loaded');
+    const rowsRejected = document.getElementById('rows-rejected');
+    const speedReadout = document.getElementById('speed-readout');
+    const elapsedReadout = document.getElementById('elapsed-readout');
+    const etaReadout = document.getElementById('eta-readout');
+    const footerStatus = document.getElementById('footer-status');
+    const engineState = document.getElementById('engine-state');
+    const bufferState = document.getElementById('buffer-state');
+    const viewportModeReadout = document.getElementById('viewport-mode-readout');
+    const consoleLog = document.getElementById('console-log');
     const modeInputs = document.querySelectorAll("input[name='view-mode']");
+
+    const SUN = { bpRp: 0.82, MG: 4.67, label: '☉ Sun', teff: '5,772 K', spectral: 'G2V' };
 
     const state = {
       dataset: null,
       bridge: null,
       startTime: null,
       targetRows: Number(rowLimitSelect.value),
-      lastParsedRows: 0,
-      lastProgressTime: performance.now(),
-      mode: "hr",
+      mode: 'hr',
+      colourTemplate: colourTemplateSelect.value,
+      overlayTemplate: overlayTemplateSelect.value,
+      showSun: showSunInput.checked,
+      showRegions: showRegionsInput.checked,
+      showLuminosity: showLuminosityInput.checked,
       width: 1000,
       height: 700,
       dpr: 1,
       mouse: null,
-      hover: null,
       galaxyAngle: 0,
-      animationId: null
+      animationId: null,
+      lastPhase: ''
     };
 
     function updateQueryPreview() {
-      queryPreview.textContent = buildGaiaQuery(Number(rowLimitSelect.value));
+      queryPreview.textContent = buildGaiaQuery(Number(rowLimitSelect.value), 'chunked by source_id');
     }
 
-    function log(message, type = "info") {
-      const line = document.createElement("div");
+    function log(message, type = 'info') {
+      const line = document.createElement('div');
       line.className = `console-line console-line--${type}`;
       const time = new Date().toLocaleTimeString();
       line.innerHTML = `<span>${time}</span><strong>${message}</strong>`;
@@ -268,7 +226,7 @@
       consoleLog.scrollTop = consoleLog.scrollHeight;
     }
 
-    function setProgress(progress, phase = "PROCESSING") {
+    function setProgress(progress, phase = 'PROCESSING') {
       const pct = Math.max(0, Math.min(100, Number(progress) || 0));
       loadingProgressBar.style.width = `${pct}%`;
       loadingPercent.textContent = `${pct.toFixed(0)}%`;
@@ -283,26 +241,21 @@
 
     function updateTiming(parsedRows, progress) {
       if (!state.startTime) {
-        elapsedReadout.textContent = "00:00";
-        etaReadout.textContent = "--:--";
-        speedReadout.textContent = "0 rows/s";
+        elapsedReadout.textContent = '00:00';
+        etaReadout.textContent = '--:--';
+        speedReadout.textContent = '0 rows/s';
         return;
       }
-
-      const now = performance.now();
-      const elapsedMs = now - state.startTime;
+      const elapsedMs = performance.now() - state.startTime;
       const elapsedSec = Math.max(0.001, elapsedMs / 1000);
       const speed = parsedRows / elapsedSec;
-
       elapsedReadout.textContent = formatDuration(elapsedMs);
       speedReadout.textContent = `${formatTelemetryNumber(speed)} rows/s`;
-
       if (progress > 0 && progress < 100) {
         const totalEstimateMs = elapsedMs / (progress / 100);
-        const remainingMs = Math.max(0, totalEstimateMs - elapsedMs);
-        etaReadout.textContent = formatDuration(remainingMs);
+        etaReadout.textContent = formatDuration(Math.max(0, totalEstimateMs - elapsedMs));
       } else {
-        etaReadout.textContent = progress >= 100 ? "00:00" : "--:--";
+        etaReadout.textContent = progress >= 100 ? '00:00' : '--:--';
       }
     }
 
@@ -311,14 +264,11 @@
       const accepted = event.acceptedRows ?? event.loadedRows ?? state.dataset?.count ?? 0;
       const rejected = event.rejectedRows ?? 0;
       const progress = event.progress ?? 0;
-
       rowsParsed.textContent = formatTelemetryNumber(parsed);
       starsLoaded.textContent = formatTelemetryNumber(accepted);
       rowsRejected.textContent = formatTelemetryNumber(rejected);
-
-      setProgress(progress, event.phase || "PROCESSING");
+      setProgress(progress, event.phase || 'PROCESSING');
       updateTiming(parsed, progress);
-
       if (event.phase && event.phase !== state.lastPhase) {
         state.lastPhase = event.phase;
         log(event.phase);
@@ -328,477 +278,310 @@
     function resizeCanvas() {
       const rect = canvas.parentElement.getBoundingClientRect();
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-
       state.width = Math.max(1, rect.width);
       state.height = Math.max(1, rect.height);
       state.dpr = dpr;
-
       canvas.width = Math.max(1, Math.floor(rect.width * dpr));
       canvas.height = Math.max(1, Math.floor(rect.height * dpr));
       canvas.style.width = `${rect.width}px`;
       canvas.style.height = `${rect.height}px`;
-
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       drawScene();
     }
 
     function clearCanvas() {
-      const w = state.width;
-      const h = state.height;
-
-      const gradient = ctx.createRadialGradient(w * 0.52, h * 0.46, 20, w * 0.52, h * 0.46, Math.max(w, h) * 0.72);
-      gradient.addColorStop(0, "rgba(53,242,208,0.085)");
-      gradient.addColorStop(0.45, "rgba(5,20,30,0.36)");
-      gradient.addColorStop(1, "rgba(1,2,4,1)");
-
-      ctx.globalCompositeOperation = "source-over";
+      const w = state.width, h = state.height;
+      const gradient = ctx.createRadialGradient(w * 0.52, h * 0.46, 20, w * 0.52, h * 0.46, Math.max(w, h) * 0.74);
+      gradient.addColorStop(0, 'rgba(53,242,208,0.065)');
+      gradient.addColorStop(0.45, 'rgba(5,20,30,0.36)');
+      gradient.addColorStop(1, 'rgba(1,2,4,1)');
+      ctx.globalCompositeOperation = 'source-over';
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, w, h);
-
-      ctx.strokeStyle = "rgba(53,242,208,0.08)";
+      ctx.strokeStyle = 'rgba(53,242,208,0.060)';
       ctx.lineWidth = 1;
-      for (let x = 0; x < w; x += 44) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, h);
-        ctx.stroke();
-      }
-      for (let y = 0; y < h; y += 44) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y);
-        ctx.stroke();
-      }
+      for (let x = 0; x < w; x += 44) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+      for (let y = 0; y < h; y += 44) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
     }
 
     function drawPlaceholder() {
       clearCanvas();
-
-      ctx.fillStyle = "rgba(234,242,255,0.72)";
-      ctx.font = "700 16px JetBrains Mono, monospace";
-      ctx.textAlign = "center";
-      ctx.fillText("Load Gaia data to render the H–R diagram or Galactic projection", state.width / 2, state.height / 2);
+      ctx.fillStyle = 'rgba(234,242,255,0.72)';
+      ctx.font = '700 16px JetBrains Mono, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('Load Gaia data to render the H–R diagram or Galactic projection', state.width / 2, state.height / 2);
     }
 
     function starColourFromBpRp(bpRp, alpha = 0.8) {
+      if (state.colourTemplate === 'mono') return `rgba(200,236,255,${alpha})`;
+      if (state.colourTemplate === 'density') return `rgba(53,242,208,${alpha})`;
+      if (state.colourTemplate === 'classic') {
+        if (bpRp < -0.05) return `rgba(120,176,255,${alpha})`;
+        if (bpRp < 0.35) return `rgba(190,220,255,${alpha})`;
+        if (bpRp < 0.65) return `rgba(255,255,238,${alpha})`;
+        if (bpRp < 1.05) return `rgba(255,226,120,${alpha})`;
+        if (bpRp < 1.55) return `rgba(255,151,55,${alpha})`;
+        return `rgba(255,68,35,${alpha})`;
+      }
       const t = Math.max(0, Math.min(1, (bpRp + 0.4) / 4.4));
       let r, g, b;
-
-      if (t < 0.25) {
-        const u = t / 0.25;
-        r = 90 + 120 * u;
-        g = 155 + 90 * u;
-        b = 255;
-      } else if (t < 0.48) {
-        const u = (t - 0.25) / 0.23;
-        r = 210 + 45 * u;
-        g = 245 + 10 * u;
-        b = 255 - 120 * u;
-      } else if (t < 0.72) {
-        const u = (t - 0.48) / 0.24;
-        r = 255;
-        g = 255 - 78 * u;
-        b = 135 - 90 * u;
-      } else {
-        const u = (t - 0.72) / 0.28;
-        r = 255;
-        g = 177 - 105 * u;
-        b = 45 - 25 * u;
-      }
-
-      return `rgba(${r | 0},${g | 0},${b | 0},${alpha})`;
+      if (t < 0.28) { const u = t / 0.28; r = 90 + 130 * u; g = 155 + 90 * u; b = 255; }
+      else if (t < 0.52) { const u = (t - 0.28) / 0.24; r = 220 + 35 * u; g = 245 + 10 * u; b = 255 - 135 * u; }
+      else if (t < 0.74) { const u = (t - 0.52) / 0.22; r = 255; g = 255 - 86 * u; b = 120 - 75 * u; }
+      else { const u = (t - 0.74) / 0.26; r = 255; g = 169 - 105 * u; b = 45 - 20 * u; }
+      return `rgba(${r|0},${g|0},${b|0},${alpha})`;
     }
 
     function plotBounds() {
       return {
-        left: Math.max(76, state.width * 0.07),
-        right: state.width - Math.max(44, state.width * 0.045),
-        top: Math.max(58, state.height * 0.08),
-        bottom: state.height - Math.max(68, state.height * 0.09)
+        left: Math.max(78, state.width * 0.07),
+        right: state.width - Math.max(58, state.width * 0.055),
+        top: Math.max(72, state.height * 0.10),
+        bottom: state.height - Math.max(74, state.height * 0.10)
       };
     }
+    function xHr(bpRp, b) { return b.left + (bpRp + 0.5) / 5.0 * (b.right - b.left); }
+    function yHr(MG, b) { return b.top + (MG + 10.0) / 26.0 * (b.bottom - b.top); }
+    function invXHr(x, b) { return -0.5 + (x - b.left) / (b.right - b.left) * 5.0; }
+    function invYHr(y, b) { return -10 + (y - b.top) / (b.bottom - b.top) * 26.0; }
+    function luminosityFromMG(MG) { return Math.pow(10, (4.67 - MG) / 2.5); }
 
-    function xHr(bpRp, bounds) {
-      const xMin = -0.5;
-      const xMax = 4.5;
-      return bounds.left + (bpRp - xMin) / (xMax - xMin) * (bounds.right - bounds.left);
-    }
-
-    function yHr(MG, bounds) {
-      const yMin = -5;
-      const yMax = 16;
-      return bounds.top + (MG - yMin) / (yMax - yMin) * (bounds.bottom - bounds.top);
-    }
-
-    function invXHr(x, bounds) {
-      return -0.5 + (x - bounds.left) / (bounds.right - bounds.left) * 5.0;
-    }
-
-    function invYHr(y, bounds) {
-      return -5 + (y - bounds.top) / (bounds.bottom - bounds.top) * 21.0;
-    }
-
-    function drawAxes(bounds, title) {
+    function drawSpectralAxis(b) {
+      const classes = [
+        ['O', -0.35, 'rgba(90,150,255,0.95)', '30kK'], ['B', -0.10, 'rgba(125,185,255,0.95)', '15kK'],
+        ['A', 0.15, 'rgba(210,230,255,0.95)', '9kK'], ['F', 0.45, 'rgba(255,255,220,0.95)', '7kK'],
+        ['G', 0.82, 'rgba(255,225,95,0.95)', '5.8kK'], ['K', 1.25, 'rgba(255,145,45,0.95)', '4.5kK'],
+        ['M', 1.85, 'rgba(255,70,45,0.95)', '3kK']
+      ];
       ctx.save();
-      ctx.globalCompositeOperation = "source-over";
-      ctx.strokeStyle = "rgba(148,163,184,0.16)";
-      ctx.fillStyle = "rgba(234,242,255,0.78)";
-      ctx.lineWidth = 1;
-      ctx.font = "700 11px JetBrains Mono, monospace";
-
-      for (let i = 0; i <= 10; i++) {
-        const x = bounds.left + i / 10 * (bounds.right - bounds.left);
-        ctx.beginPath();
-        ctx.moveTo(x, bounds.top);
-        ctx.lineTo(x, bounds.bottom);
-        ctx.stroke();
+      ctx.font = '900 12px JetBrains Mono, monospace';
+      ctx.textAlign = 'center';
+      for (const [label, bp, colour, temp] of classes) {
+        const x = xHr(bp, b);
+        ctx.fillStyle = colour;
+        ctx.fillText(label, x, b.top - 29);
+        ctx.fillStyle = 'rgba(234,242,255,0.50)';
+        ctx.font = '700 9px JetBrains Mono, monospace';
+        ctx.fillText(temp, x, b.top - 15);
+        ctx.font = '900 12px JetBrains Mono, monospace';
+        ctx.strokeStyle = colour.replace('0.95', '0.35');
+        ctx.beginPath(); ctx.moveTo(x, b.top - 8); ctx.lineTo(x, b.top); ctx.stroke();
       }
-
-      for (let i = 0; i <= 8; i++) {
-        const y = bounds.top + i / 8 * (bounds.bottom - bounds.top);
-        ctx.beginPath();
-        ctx.moveTo(bounds.left, y);
-        ctx.lineTo(bounds.right, y);
-        ctx.stroke();
-      }
-
-      ctx.strokeStyle = "rgba(234,242,255,0.45)";
-      ctx.strokeRect(bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top);
-
-      ctx.fillStyle = "rgba(53,242,208,0.95)";
-      ctx.textAlign = "center";
-      ctx.font = "900 13px JetBrains Mono, monospace";
-      ctx.fillText(title, (bounds.left + bounds.right) / 2, bounds.top - 26);
-
-      ctx.font = "800 11px JetBrains Mono, monospace";
-      ctx.fillText("BP–RP colour index", (bounds.left + bounds.right) / 2, bounds.bottom + 44);
-
-      ctx.save();
-      ctx.translate(bounds.left - 52, (bounds.top + bounds.bottom) / 2);
-      ctx.rotate(-Math.PI / 2);
-      ctx.fillText("Absolute Gaia G magnitude  M_G", 0, 0);
+      ctx.fillStyle = 'rgba(234,242,255,0.60)';
+      ctx.font = '700 10px JetBrains Mono, monospace';
+      ctx.fillText('Spectral type / approximate temperature', (b.left + b.right) / 2, b.top - 48);
       ctx.restore();
+    }
 
-      ctx.fillStyle = "rgba(234,242,255,0.72)";
-      ctx.textAlign = "center";
-      for (let xVal = 0; xVal <= 4; xVal += 1) {
-        ctx.fillText(String(xVal), xHr(xVal, bounds), bounds.bottom + 22);
+    function drawAxes(b, title) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = 'rgba(148,163,184,0.15)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 10; i++) {
+        const x = b.left + i / 10 * (b.right - b.left);
+        ctx.beginPath(); ctx.moveTo(x, b.top); ctx.lineTo(x, b.bottom); ctx.stroke();
       }
-
-      ctx.textAlign = "right";
-      for (let yVal = -5; yVal <= 15; yVal += 5) {
-        ctx.fillText(String(yVal), bounds.left - 12, yHr(yVal, bounds) + 4);
+      for (let i = 0; i <= 10; i++) {
+        const y = b.top + i / 10 * (b.bottom - b.top);
+        ctx.beginPath(); ctx.moveTo(b.left, y); ctx.lineTo(b.right, y); ctx.stroke();
       }
+      ctx.strokeStyle = 'rgba(234,242,255,0.46)'; ctx.strokeRect(b.left, b.top, b.right - b.left, b.bottom - b.top);
+      ctx.fillStyle = 'rgba(53,242,208,0.96)'; ctx.textAlign = 'center'; ctx.font = '900 13px JetBrains Mono, monospace';
+      ctx.fillText(title, (b.left + b.right) / 2, b.top - 58);
+      drawSpectralAxis(b);
+      ctx.font = '800 11px JetBrains Mono, monospace'; ctx.fillText('BP–RP colour index', (b.left + b.right) / 2, b.bottom + 44);
+      ctx.save(); ctx.translate(b.left - 54, (b.top + b.bottom) / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('Absolute Gaia G magnitude  M_G', 0, 0); ctx.restore();
+      ctx.fillStyle = 'rgba(234,242,255,0.72)'; ctx.textAlign = 'center';
+      for (let xVal = 0; xVal <= 4; xVal += 1) ctx.fillText(String(xVal), xHr(xVal, b), b.bottom + 22);
+      ctx.textAlign = 'right';
+      for (let yVal = -10; yVal <= 15; yVal += 5) ctx.fillText(String(yVal), b.left - 12, yHr(yVal, b) + 4);
+      if (state.showLuminosity) drawLuminosityAxis(b);
+      ctx.restore();
+    }
 
-      ctx.fillStyle = "rgba(53,242,208,0.28)";
-      ctx.textAlign = "left";
-      ctx.fillText("MAIN SEQUENCE", xHr(0.75, bounds), yHr(5.2, bounds));
-      ctx.fillStyle = "rgba(255,122,61,0.34)";
-      ctx.fillText("RED GIANTS", xHr(1.35, bounds), yHr(0.0, bounds));
-      ctx.fillStyle = "rgba(101,168,255,0.32)";
-      ctx.fillText("WHITE DWARFS", xHr(0.0, bounds), yHr(12.5, bounds));
+    function drawLuminosityAxis(b) {
+      ctx.save();
+      ctx.textAlign = 'left';
+      ctx.font = '800 10px JetBrains Mono, monospace';
+      ctx.fillStyle = 'rgba(255,220,80,0.86)';
+      ctx.save(); ctx.translate(b.right + 48, (b.top + b.bottom) / 2); ctx.rotate(Math.PI / 2); ctx.fillText('Luminosity  L/L☉', 0, 0); ctx.restore();
+      const vals = [1e5, 1e3, 10, 1, 0.01, 0.0001];
+      for (const L of vals) {
+        const MG = 4.67 - 2.5 * Math.log10(L);
+        const y = yHr(MG, b);
+        if (y < b.top || y > b.bottom) continue;
+        ctx.strokeStyle = 'rgba(255,220,80,0.18)'; ctx.beginPath(); ctx.moveTo(b.right, y); ctx.lineTo(b.right + 7, y); ctx.stroke();
+        ctx.fillText(L >= 1 ? L.toExponential(0).replace('e+', '×10^') : L.toString(), b.right + 11, y + 3);
+      }
+      ctx.restore();
+    }
 
+    function drawRegionCurves(b) {
+      if (!state.showRegions) return;
+      const rich = state.overlayTemplate !== 'clean';
+      ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.setLineDash(rich ? [4, 5] : [7, 8]); ctx.lineWidth = rich ? 1.2 : 1;
+      function curve(points, colour) { ctx.strokeStyle = colour; ctx.beginPath(); points.forEach((p,i)=>{ const x=xHr(p[0],b), y=yHr(p[1],b); if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y); }); ctx.stroke(); }
+      curve([[-0.25,-1.0],[0,1.0],[0.45,3.5],[0.82,4.67],[1.25,7.2],[1.8,10.1],[2.55,13.6],[3.2,15.2]], 'rgba(53,242,208,0.43)');
+      curve([[0.6,1.2],[1.1,0.7],[1.7,0.15],[2.2,-0.45],[2.9,-1.4],[3.5,-2.2]], 'rgba(255,122,61,0.44)');
+      curve([[-0.25,11.4],[0.15,12.3],[0.65,13.5],[1.15,14.8],[1.55,15.4]], 'rgba(101,168,255,0.44)');
+      curve([[-0.2,-4.9],[0.8,-5.1],[1.8,-5.35],[3.1,-5.75]], 'rgba(255,73,237,0.46)');
+      ctx.setLineDash([]);
+      const labels = [
+        ['SUPERGIANTS', 1.65, -6.1, 'rgba(255,73,237,0.78)'], ['RED GIANTS', 2.55, 0.4, 'rgba(255,122,61,0.78)'],
+        ['SUBGIANTS', 1.15, 2.8, 'rgba(211,110,255,0.70)'], ['MAIN SEQUENCE', 0.50, 7.9, 'rgba(53,242,208,0.68)'],
+        ['WHITE DWARFS', 0.10, 13.2, 'rgba(101,168,255,0.70)']
+      ];
+      ctx.font = '900 12px JetBrains Mono, monospace';
+      for (const [name,x,y,c] of labels) { ctx.fillStyle = c; ctx.fillText(name, xHr(x,b), yHr(y,b)); }
+      if (rich) drawTextbookRegionHulls(b);
+      ctx.restore();
+    }
+
+    function drawTextbookRegionHulls(b) {
+      ctx.save(); ctx.lineWidth = 1.1; ctx.strokeStyle = 'rgba(42,255,125,0.34)';
+      const hulls = [
+        [[-0.25,-1.2],[0.1,2.0],[0.8,5.3],[1.5,9.0],[2.35,13.2],[1.55,15.0],[0.2,13.0],[-0.3,3.0]],
+        [[0.75,-0.8],[1.55,-1.0],[2.8,-2.0],[3.45,-3.3],[3.75,-1.3],[2.75,0.9],[1.0,1.7]],
+        [[-0.35,11.0],[0.25,12.1],[0.95,13.8],[1.55,15.5],[0.45,15.8],[-0.3,13.6]]
+      ];
+      hulls.forEach(points => { ctx.beginPath(); points.forEach((p,i)=>{ const x=xHr(p[0],b), y=yHr(p[1],b); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }); ctx.closePath(); ctx.stroke(); });
+      ctx.restore();
+    }
+
+    function drawSunMarker(b) {
+      if (!state.showSun) return;
+      const x = xHr(SUN.bpRp, b), y = yHr(SUN.MG, b);
+      ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.strokeStyle = 'rgba(255,222,88,0.95)'; ctx.fillStyle = 'rgba(255,222,88,0.95)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x-14,y); ctx.lineTo(x+14,y); ctx.moveTo(x,y-14); ctx.lineTo(x,y+14); ctx.stroke();
+      ctx.font = '900 12px JetBrains Mono, monospace'; ctx.fillText(SUN.label, x + 16, y - 12);
+      ctx.font = '700 10px JetBrains Mono, monospace'; ctx.fillStyle = 'rgba(255,236,150,0.82)'; ctx.fillText(`${SUN.spectral} · ${SUN.teff}`, x + 16, y + 4);
+      ctx.restore();
+    }
+
+    function drawHoverInfo(b) {
+      if (!state.mouse) return;
+      const x = state.mouse.x, y = state.mouse.y;
+      if (x < b.left || x > b.right || y < b.top || y > b.bottom) return;
+      const bp = invXHr(x, b), MG = invYHr(y, b), L = luminosityFromMG(MG);
+      ctx.save(); ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = 'rgba(53,242,208,0.42)'; ctx.setLineDash([6, 7]);
+      ctx.beginPath(); ctx.moveTo(x,b.top); ctx.lineTo(x,b.bottom); ctx.moveTo(b.left,y); ctx.lineTo(b.right,y); ctx.stroke(); ctx.setLineDash([]);
+      const boxW = 252, boxH = 103; let bx = x + 16, by = y + 16;
+      if (bx + boxW > state.width - 20) bx = x - boxW - 16; if (by + boxH > state.height - 20) by = y - boxH - 16;
+      ctx.fillStyle = 'rgba(2,6,23,0.86)'; ctx.strokeStyle = 'rgba(53,242,208,0.30)';
+      ctx.beginPath(); ctx.roundRect(bx, by, boxW, boxH, 14); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(53,242,208,0.95)'; ctx.font = '900 11px JetBrains Mono, monospace'; ctx.fillText('CROSSHAIR TELEMETRY', bx + 14, by + 24);
+      ctx.fillStyle = 'rgba(234,242,255,0.82)'; ctx.font = '700 11px JetBrains Mono, monospace';
+      ctx.fillText(`BP–RP: ${bp.toFixed(3)}`, bx + 14, by + 48); ctx.fillText(`M_G:   ${MG.toFixed(3)}`, bx + 14, by + 66); ctx.fillText(`L/L☉:  ${L.toExponential(2)}`, bx + 14, by + 84);
       ctx.restore();
     }
 
     function drawHRDiagram() {
-      if (!state.dataset) {
-        drawPlaceholder();
-        return;
-      }
-
+      if (!state.dataset) return drawPlaceholder();
       clearCanvas();
-
-      const bounds = plotBounds();
-      drawAxes(bounds, `Gaia DR3 H–R diagram · ${state.dataset.count.toLocaleString()} stars`);
-
-      const hr = state.dataset.hr;
-      const photometry = state.dataset.photometry;
-      const count = state.dataset.count;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top);
-      ctx.clip();
-
-      ctx.globalCompositeOperation = "lighter";
-
+      const b = plotBounds();
+      drawAxes(b, `Gaia DR3 H–R diagram · ${state.dataset.count.toLocaleString()} stars`);
+      drawRegionCurves(b);
+      const hr = state.dataset.hr, count = state.dataset.count;
+      ctx.save(); ctx.beginPath(); ctx.rect(b.left, b.top, b.right - b.left, b.bottom - b.top); ctx.clip(); ctx.globalCompositeOperation = 'lighter';
       for (let i = 0; i < count; i++) {
-        const bpRp = hr[i * 2];
-        const MG = hr[i * 2 + 1];
-
-        const x = xHr(bpRp, bounds);
-        const y = yHr(MG, bounds);
-
-        if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) continue;
-
-        const alpha = 0.055;
+        const bpRp = hr[i*2], MG = hr[i*2+1];
+        const x = xHr(bpRp, b), y = yHr(MG, b);
+        if (x < b.left || x > b.right || y < b.top || y > b.bottom) continue;
+        const alpha = state.colourTemplate === 'density' ? 0.075 : 0.065;
         ctx.fillStyle = starColourFromBpRp(bpRp, alpha);
-        ctx.fillRect(x, y, 1.35, 1.35);
+        ctx.fillRect(x, y, 1.25, 1.25);
       }
-
-      ctx.restore();
-      ctx.globalCompositeOperation = "source-over";
-
-      if (state.mouse) drawHoverInfo(bounds);
-    }
-
-    function drawHoverInfo(bounds) {
-      const x = state.mouse.x;
-      const y = state.mouse.y;
-      if (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom) return;
-
-      const bp = invXHr(x, bounds);
-      const MG = invYHr(y, bounds);
-
-      ctx.save();
-      ctx.strokeStyle = "rgba(53,242,208,0.45)";
-      ctx.setLineDash([6, 7]);
-      ctx.beginPath();
-      ctx.moveTo(x, bounds.top);
-      ctx.lineTo(x, bounds.bottom);
-      ctx.moveTo(bounds.left, y);
-      ctx.lineTo(bounds.right, y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      const L = Math.pow(10, (4.67 - MG) / 2.5);
-
-      const boxW = 245;
-      const boxH = 95;
-      let bx = x + 16;
-      let by = y + 16;
-      if (bx + boxW > state.width - 20) bx = x - boxW - 16;
-      if (by + boxH > state.height - 20) by = y - boxH - 16;
-
-      ctx.fillStyle = "rgba(2,6,23,0.84)";
-      ctx.strokeStyle = "rgba(53,242,208,0.30)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(bx, by, boxW, boxH, 14);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = "rgba(53,242,208,0.95)";
-      ctx.font = "900 11px JetBrains Mono, monospace";
-      ctx.textAlign = "left";
-      ctx.fillText("CROSSHAIR TELEMETRY", bx + 14, by + 24);
-
-      ctx.fillStyle = "rgba(234,242,255,0.82)";
-      ctx.font = "700 11px JetBrains Mono, monospace";
-      ctx.fillText(`BP–RP: ${bp.toFixed(3)}`, bx + 14, by + 48);
-      ctx.fillText(`M_G:   ${MG.toFixed(3)}`, bx + 14, by + 66);
-      ctx.fillText(`L/L☉:  ${L.toExponential(2)}`, bx + 14, by + 84);
-
-      ctx.restore();
+      ctx.restore(); ctx.globalCompositeOperation = 'source-over';
+      drawSunMarker(b); drawHoverInfo(b);
     }
 
     function drawGalaxyMap() {
-      if (!state.dataset) {
-        drawPlaceholder();
-        return;
-      }
-
+      if (!state.dataset) return drawPlaceholder();
       clearCanvas();
-
-      const w = state.width;
-      const h = state.height;
-      const positions = state.dataset.positions;
-      const hr = state.dataset.hr;
-      const count = state.dataset.count;
-      const cx = w / 2;
-      const cy = h / 2;
+      const w=state.width, h=state.height, cx=w/2, cy=h/2;
+      const positions=state.dataset.positions, hr=state.dataset.hr, count=state.dataset.count;
       const scale = Math.min(w, h) * 0.42 / 520;
-
       state.galaxyAngle += 0.0025;
-      const angle = state.galaxyAngle;
-      const cosA = Math.cos(angle);
-      const sinA = Math.sin(angle);
-
-      ctx.save();
-      ctx.globalCompositeOperation = "lighter";
-
-      for (let i = 0; i < count; i++) {
-        const px = positions[i * 3];
-        const py = positions[i * 3 + 1];
-        const pz = positions[i * 3 + 2];
-
-        const xRot = px * cosA - py * sinA;
-        const yRot = px * sinA + py * cosA;
-
-        const x = cx + xRot * scale;
-        const y = cy + (pz * 0.85) * scale;
-
-        if (x < 0 || x > w || y < 0 || y > h) continue;
-
-        const bpRp = hr[i * 2];
-        ctx.fillStyle = starColourFromBpRp(bpRp, 0.075);
-        ctx.fillRect(x, y, 1.2, 1.2);
+      const a=state.galaxyAngle, ca=Math.cos(a), sa=Math.sin(a);
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      for (let i=0;i<count;i++) {
+        const px=positions[i*3], py=positions[i*3+1], pz=positions[i*3+2];
+        const xr=px*ca-py*sa, yr=px*sa+py*ca;
+        const x=cx+xr*scale, y=cy+pz*0.85*scale;
+        if(x<0||x>w||y<0||y>h) continue;
+        ctx.fillStyle = starColourFromBpRp(hr[i*2], 0.075);
+        ctx.fillRect(x,y,1.2,1.2);
       }
-
-      ctx.restore();
-
-      ctx.save();
-      ctx.globalCompositeOperation = "source-over";
-      ctx.strokeStyle = "rgba(53,242,208,0.22)";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, Math.min(w, h) * 0.43, Math.min(w, h) * 0.18, 0, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.fillStyle = "rgba(53,242,208,0.95)";
-      ctx.font = "900 13px JetBrains Mono, monospace";
-      ctx.textAlign = "center";
-      ctx.fillText(`Local Gaia point-cloud projection · ${count.toLocaleString()} stars`, cx, 38);
-
-      ctx.fillStyle = "rgba(234,242,255,0.68)";
-      ctx.font = "700 11px JetBrains Mono, monospace";
-      ctx.fillText("Rotating RA/Dec/parallax projection — true spatial positions from Gaia parallax", cx, h - 32);
-      ctx.restore();
-
-      if (state.mode === "galaxy") {
-        state.animationId = requestAnimationFrame(drawScene);
-      }
+      ctx.restore(); ctx.save(); ctx.globalCompositeOperation='source-over';
+      ctx.strokeStyle='rgba(53,242,208,0.24)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.ellipse(cx, cy, Math.min(w,h)*0.43, Math.min(w,h)*0.18, 0, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle='rgba(53,242,208,0.95)'; ctx.font='900 13px JetBrains Mono, monospace'; ctx.textAlign='center'; ctx.fillText(`Local Gaia point-cloud projection · ${count.toLocaleString()} stars`, cx, 38);
+      ctx.fillStyle='rgba(234,242,255,0.68)'; ctx.font='700 11px JetBrains Mono, monospace'; ctx.fillText('Rotating RA/Dec/parallax projection — true spatial positions from Gaia parallax', cx, h-32);
+      ctx.restore(); if(state.mode==='galaxy') state.animationId=requestAnimationFrame(drawScene);
     }
 
     function drawScene() {
-      if (state.animationId) {
-        cancelAnimationFrame(state.animationId);
-        state.animationId = null;
-      }
-
-      if (state.mode === "hr") {
-        drawHRDiagram();
-      } else {
-        drawGalaxyMap();
-      }
+      if (state.animationId) { cancelAnimationFrame(state.animationId); state.animationId = null; }
+      if (state.mode === 'hr') drawHRDiagram(); else drawGalaxyMap();
     }
 
     async function initializeDatastream() {
       const targetRows = Number(rowLimitSelect.value);
-      state.targetRows = targetRows;
-      state.startTime = performance.now();
-      state.lastPhase = "";
-
-      initializeButton.disabled = true;
-      loadingError.hidden = true;
-      loadingScreen.classList.add("is-visible");
-
+      state.targetRows = targetRows; state.startTime = performance.now(); state.lastPhase = '';
+      initializeButton.disabled = true; loadingError.hidden = true; loadingScreen.classList.add('is-visible');
       loadingTitle.textContent = `Intercepting ${targetRows.toLocaleString()} Gaia geodesics...`;
-      loadingCopy.textContent = "Fetching real Gaia DR3 rows. The console will report network, parsing, buffer packing, speed and ETA.";
-      setStatus("Linking");
-      setProgress(1, "OPENING GAIA TAP CHANNEL");
-      engineState.textContent = "DATASTREAM ACTIVE";
-      bufferState.textContent = "ALLOCATING";
-      log(`Mission started: requesting ${targetRows.toLocaleString()} Gaia DR3 rows`, "success");
-
-      state.bridge = new GaiaDataBridge({
-        targetRows,
-        query: buildGaiaQuery(targetRows),
-        onProgress: updateTelemetry,
-        tapMode: "auto",
-        preferAsync: false
-      });
-
+      loadingCopy.textContent = 'Fetching real Gaia DR3 rows in browser-safe pages. The console reports route attempts, parsing, speed and ETA.';
+      setStatus('Linking'); setProgress(1, 'OPENING GAIA TAP CHANNEL'); engineState.textContent = 'DATASTREAM ACTIVE'; bufferState.textContent = 'ALLOCATING';
+      log(`Mission started: requesting ${targetRows.toLocaleString()} Gaia DR3 rows`, 'success');
+      state.bridge = new GaiaDataBridge({ targetRows, pageSize: 10000, onProgress: updateTelemetry });
       try {
-        const dataset = await state.bridge.fetchMillionStars();
-        state.dataset = dataset;
-        window.__GAIA_DATASET__ = dataset;
-
-        setProgress(100, "GPU BUFFERS READY");
-        setStatus("Locked");
-        engineState.textContent = "DATA READY";
-        bufferState.textContent = `${dataset.count.toLocaleString()} STARS`;
-        loadingScreen.classList.remove("is-visible");
-
-        updateTelemetry({
-          parsedRows: dataset.telemetry.parsedRows,
-          acceptedRows: dataset.count,
-          rejectedRows: dataset.telemetry.rejectedRows,
-          progress: 100,
-          phase: "GPU BUFFERS READY"
-        });
-
-        log(`Dataset ready: ${dataset.count.toLocaleString()} stars packed into Float32Array buffers`, "success");
-        log("Rendering H–R diagram now. Use the toggle to switch to 3D Galactic Map.", "success");
-
+        const dataset = await state.bridge.fetchStars();
+        state.dataset = dataset; window.__GAIA_DATASET__ = dataset;
+        setProgress(100, 'GPU BUFFERS READY'); setStatus('Locked'); engineState.textContent='DATA READY'; bufferState.textContent=`${dataset.count.toLocaleString()} STARS`; loadingScreen.classList.remove('is-visible');
+        updateTelemetry({ parsedRows: dataset.telemetry.parsedRows, acceptedRows: dataset.count, rejectedRows: dataset.telemetry.rejectedRows, progress: 100, phase: 'GPU BUFFERS READY' });
+        log(`Dataset ready: ${dataset.count.toLocaleString()} stars packed into Float32Array buffers`, 'success');
+        log('Rendering H–R diagram now. Try Classic Textbook template + Annotated overlay.', 'success');
         drawScene();
-
-        window.dispatchEvent(new CustomEvent("gaia:data-ready", {
-          detail: { dataset }
-        }));
-
       } catch (error) {
-        console.error(error);
-        setStatus("Error");
-        engineState.textContent = "STREAM FAILED";
-        bufferState.textContent = "EMPTY";
-        setProgress(0, "STREAM FAILED");
-
-        loadingError.hidden = false;
-        const message = error?.message || "Unknown Gaia request error.";
-        loadingError.textContent = message;
-        log(message, "error");
-        log("Tip: if this says Failed to fetch, the browser/GitHub Pages is probably blocking the ESA TAP request via CORS. This version tries direct ESA routes and public CORS bridges automatically.", "error");
-
-      } finally {
-        initializeButton.disabled = false;
-      }
+        console.error(error); setStatus('Error'); engineState.textContent='STREAM FAILED'; bufferState.textContent='EMPTY'; setProgress(0, 'STREAM FAILED');
+        loadingError.hidden = false; const message = error?.message || 'Unknown Gaia request error.'; loadingError.textContent = message; log(message, 'error');
+        log('For 50k+ on GitHub Pages, this version chunks into 10k pages. If all public bridges fail, deploy the Node proxy version.', 'error');
+      } finally { initializeButton.disabled = false; }
     }
 
     function bindModeToggle() {
-      for (const input of modeInputs) {
-        input.addEventListener("change", () => {
-          if (!input.checked) return;
+      for (const input of modeInputs) input.addEventListener('change', () => {
+        if (!input.checked) return;
+        state.mode = input.value; document.querySelector('.app').dataset.mode = input.value;
+        viewportModeReadout.textContent = input.value === 'hr' ? '2D H–R PLOT' : '3D GALACTIC MAP';
+        log(`View mode changed: ${viewportModeReadout.textContent}`); drawScene();
+      });
+    }
 
-          state.mode = input.value;
-          document.querySelector(".app").dataset.mode = input.value;
-          viewportModeReadout.textContent = input.value === "hr" ? "2D H–R PLOT" : "3D GALACTIC MAP";
-          log(`View mode changed: ${viewportModeReadout.textContent}`);
-          drawScene();
-        });
-      }
+    function exportPNG() {
+      const a = document.createElement('a');
+      a.download = `gaia-hr-diagram-${state.mode}-${Date.now()}.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
     }
 
     function boot() {
-      updateQueryPreview();
-      resizeCanvas();
-      setStatus("Idle");
-      setProgress(0, "STANDBY");
-      log("Mission Control loaded. Choose row count, then initialize datastream.");
-
-      rowLimitSelect.addEventListener("change", () => {
-        updateQueryPreview();
-        log(`Row target changed to ${Number(rowLimitSelect.value).toLocaleString()}`);
-      });
-
-      initializeButton.addEventListener("click", initializeDatastream);
-      clearConsoleButton.addEventListener("click", () => {
-        consoleLog.innerHTML = "";
-        log("Console cleared.");
-      });
-
-      canvas.addEventListener("mousemove", (event) => {
-        const rect = canvas.getBoundingClientRect();
-        state.mouse = {
-          x: event.clientX - rect.left,
-          y: event.clientY - rect.top
-        };
-        if (state.mode === "hr") drawScene();
-      });
-
-      canvas.addEventListener("mouseleave", () => {
-        state.mouse = null;
-        if (state.mode === "hr") drawScene();
-      });
-
-      bindModeToggle();
-
-      const ro = new ResizeObserver(resizeCanvas);
-      ro.observe(canvas.parentElement);
-      window.addEventListener("resize", resizeCanvas);
+      updateQueryPreview(); resizeCanvas(); setStatus('Idle'); setProgress(0, 'STANDBY'); log('Mission Control loaded. Choose row count, then initialize datastream.');
+      rowLimitSelect.addEventListener('change', () => { updateQueryPreview(); log(`Row target changed to ${Number(rowLimitSelect.value).toLocaleString()}`); });
+      initializeButton.addEventListener('click', initializeDatastream); clearConsoleButton.addEventListener('click', () => { consoleLog.innerHTML = ''; log('Console cleared.'); });
+      exportButton.addEventListener('click', exportPNG);
+      colourTemplateSelect.addEventListener('change', () => { state.colourTemplate = colourTemplateSelect.value; log(`Colour template: ${state.colourTemplate}`); drawScene(); });
+      overlayTemplateSelect.addEventListener('change', () => { state.overlayTemplate = overlayTemplateSelect.value; if (state.overlayTemplate !== 'clean') state.showRegions = showRegionsInput.checked = true; log(`Overlay template: ${state.overlayTemplate}`); drawScene(); });
+      showSunInput.addEventListener('change', () => { state.showSun = showSunInput.checked; drawScene(); });
+      showRegionsInput.addEventListener('change', () => { state.showRegions = showRegionsInput.checked; drawScene(); });
+      showLuminosityInput.addEventListener('change', () => { state.showLuminosity = showLuminosityInput.checked; drawScene(); });
+      canvas.addEventListener('mousemove', ev => { const r = canvas.getBoundingClientRect(); state.mouse = {x: ev.clientX - r.left, y: ev.clientY - r.top}; if (state.mode === 'hr') drawScene(); });
+      canvas.addEventListener('mouseleave', () => { state.mouse = null; if (state.mode === 'hr') drawScene(); });
+      bindModeToggle(); const ro = new ResizeObserver(resizeCanvas); ro.observe(canvas.parentElement); window.addEventListener('resize', resizeCanvas);
     }
-
     boot();
   </script>
 </body>
