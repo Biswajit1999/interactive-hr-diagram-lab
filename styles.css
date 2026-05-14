@@ -1,3 +1,4 @@
+/* Interactive H–R Diagram Laboratory — Created by Biswajit Jana, 2026. Please keep credit when reusing. */
 :root {
   --bg: #010204;
   --panel: rgba(5, 13, 26, 0.84);
@@ -454,5 +455,82 @@ button, input, select, code { font-family: inherit; }
 
   .observatory-console {
     grid-column: 1 / -1;
+  }
+}
+
+
+/* Interaction polish: download, zoom, robust crediting */
+.zoom-tools {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.zoom-tools button {
+  border: 1px solid rgba(53,242,208,0.25);
+  border-radius: 10px;
+  background: rgba(5,14,28,0.88);
+  color: var(--text);
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  padding: 9px 5px;
+  cursor: pointer;
+}
+
+.zoom-tools button:hover,
+.secondary-button:hover,
+.arm-button:hover {
+  border-color: rgba(53,242,208,0.72);
+  box-shadow: 0 0 26px rgba(53,242,208,0.22);
+}
+
+.secondary-button + .secondary-button {
+  margin-top: 8px;
+}
+
+.telemetry-compact .metric-grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.footer-credit {
+  position: absolute;
+  right: 20px;
+  bottom: 3px;
+  font-size: 0.58rem;
+  color: rgba(234,242,255,0.45);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.footer-credit strong {
+  color: var(--cyan);
+}
+
+.observatory-footer {
+  position: relative;
+}
+
+.arm-button {
+  position: relative;
+  z-index: 5;
+  pointer-events: auto;
+}
+
+.top-actions {
+  position: relative;
+  z-index: 5;
+}
+
+.viewport-shell canvas {
+  cursor: crosshair;
+}
+
+@media (max-width: 1260px) {
+  .footer-credit {
+    position: static;
+    grid-column: 1 / -1;
+    padding: 0 18px;
   }
 }

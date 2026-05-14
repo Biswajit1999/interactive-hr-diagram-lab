@@ -1,4 +1,9 @@
 <!DOCTYPE html>
+<!--
+  Interactive H–R Diagram Laboratory
+  Created by Biswajit Jana, 2026.
+  Please keep visible credit when reusing or modifying this project.
+-->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -79,6 +84,13 @@
           </div>
 
           <button id="export-png" class="secondary-button" type="button">Export current view PNG</button>
+          <button id="download-csv" class="secondary-button" type="button">Download loaded Gaia CSV</button>
+
+          <div class="zoom-tools" aria-label="Plot zoom controls">
+            <button id="zoom-in" type="button">Zoom +</button>
+            <button id="zoom-out" type="button">Zoom −</button>
+            <button id="zoom-reset" type="button">Reset</button>
+          </div>
 
           <p>The Sun is plotted at BP–RP ≈ 0.82 and M<sub>G</sub> ≈ 4.67. Templates change only the display layer; the Gaia rows remain unchanged.</p>
         </div>
@@ -127,6 +139,20 @@
     </section>
 
     <aside class="panel sidebar-right observatory-right">
+      <section class="panel-section observatory-card telemetry-compact">
+        <h2>Telemetry</h2>
+        <div class="metric-grid">
+          <div class="metric"><span>Status</span><strong id="stream-status">Idle</strong></div>
+          <div class="metric"><span>Progress</span><strong id="progress-readout">0%</strong></div>
+          <div class="metric"><span>Rows parsed</span><strong id="rows-parsed">0</strong></div>
+          <div class="metric"><span>Stars loaded</span><strong id="stars-loaded">0</strong></div>
+          <div class="metric"><span>Rejected</span><strong id="rows-rejected">0</strong></div>
+          <div class="metric"><span>Speed</span><strong id="speed-readout">0 rows/s</strong></div>
+          <div class="metric"><span>Elapsed</span><strong id="elapsed-readout">00:00</strong></div>
+          <div class="metric"><span>ETA</span><strong id="eta-readout">--:--</strong></div>
+        </div>
+      </section>
+
       <section class="panel-section observatory-card">
         <h2>Region Population</h2>
         <div class="region-table">
@@ -161,12 +187,15 @@
 
     <footer
 
+    <footer
+
     <footer class="footer observatory-footer">
       <div class="footer-stat"><span>☆</span><div><small>Total Stars</small><strong id="footer-total-stars">0</strong></div></div>
       <div class="footer-stat"><span>🌡</span><div><small>Colour Range</small><strong id="footer-colour-range">BP–RP —</strong></div></div>
       <div class="footer-stat"><span>☉</span><div><small>Sun Reference</small><strong>G2V · M<sub>G</sub> 4.67</strong></div></div>
       <div class="footer-stat"><span>◎</span><div><small>Dataset</small><strong id="footer-dataset">Gaia DR3</strong></div></div>
       <div class="footer-stat"><span>⚙</span><div><small>Status</small><strong id="footer-status">STANDBY</strong></div></div>
+      <div class="footer-credit">Created by <strong>Biswajit Jana</strong> · © 2026</div>
     </footer>
   </main>
 
@@ -180,6 +209,10 @@
     const initializeButton = document.getElementById('initialize-stream');
     const clearConsoleButton = document.getElementById('clear-console');
     const exportButton = document.getElementById('export-png');
+    const downloadCsvButton = document.getElementById('download-csv');
+    const zoomInButton = document.getElementById('zoom-in');
+    const zoomOutButton = document.getElementById('zoom-out');
+    const zoomResetButton = document.getElementById('zoom-reset');
     const rowLimitSelect = document.getElementById('row-limit');
     const queryPreview = document.getElementById('query-preview');
 
@@ -267,13 +300,13 @@
       const pct = Math.max(0, Math.min(100, Number(progress) || 0));
       loadingProgressBar.style.width = `${pct}%`;
       loadingPercent.textContent = `${pct.toFixed(0)}%`;
-      progressReadout.textContent = `${pct.toFixed(0)}%`;
+      if (progressReadout) progressReadout.textContent = `${pct.toFixed(0)}%`;
       loadingPhase.textContent = phase;
     }
 
     function setStatus(status) {
-      streamStatus.textContent = status;
-      footerStatus.textContent = status.toUpperCase();
+      if (streamStatus) streamStatus.textContent = status;
+      if (footerStatus) footerStatus.textContent = status.toUpperCase();
     }
 
     function updateTiming(parsedRows, progress) {
@@ -286,8 +319,8 @@
       const elapsedMs = performance.now() - state.startTime;
       const elapsedSec = Math.max(0.001, elapsedMs / 1000);
       const speed = parsedRows / elapsedSec;
-      elapsedReadout.textContent = formatDuration(elapsedMs);
-      speedReadout.textContent = `${formatTelemetryNumber(speed)} rows/s`;
+      if (elapsedReadout) elapsedReadout.textContent = formatDuration(elapsedMs);
+      if (speedReadout) speedReadout.textContent = `${formatTelemetryNumber(speed)} rows/s`;
       if (progress > 0 && progress < 100) {
         const totalEstimateMs = elapsedMs / (progress / 100);
         etaReadout.textContent = formatDuration(Math.max(0, totalEstimateMs - elapsedMs));
@@ -301,9 +334,9 @@
       const accepted = event.acceptedRows ?? event.loadedRows ?? state.dataset?.count ?? 0;
       const rejected = event.rejectedRows ?? 0;
       const progress = event.progress ?? 0;
-      rowsParsed.textContent = formatTelemetryNumber(parsed);
-      starsLoaded.textContent = formatTelemetryNumber(accepted);
-      rowsRejected.textContent = formatTelemetryNumber(rejected);
+      if (rowsParsed) rowsParsed.textContent = formatTelemetryNumber(parsed);
+      if (starsLoaded) starsLoaded.textContent = formatTelemetryNumber(accepted);
+      if (rowsRejected) rowsRejected.textContent = formatTelemetryNumber(rejected);
       setProgress(progress, event.phase || 'PROCESSING');
       updateTiming(parsed, progress);
       if (event.phase && event.phase !== state.lastPhase) {
@@ -608,6 +641,18 @@
       ctx.restore();
     }
 
+    
+    function drawCreditWatermark() {
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.textAlign = 'right';
+      ctx.font = '800 10px JetBrains Mono, monospace';
+      ctx.fillStyle = 'rgba(234,242,255,0.34)';
+      ctx.fillText('Created by Biswajit Jana · Gaia DR3 · 2026', state.width - 24, state.height - 18);
+      ctx.restore();
+    }
+
+
     function drawHRDiagram() {
       if (!state.dataset) return drawPlaceholder();
       clearCanvas();
@@ -626,6 +671,7 @@
       }
       ctx.restore(); ctx.globalCompositeOperation = 'source-over';
       drawSunMarker(b); drawHoverInfo(b);
+      drawCreditWatermark();
     }
 
     function drawGalaxyMap() {
@@ -854,6 +900,96 @@
       });
     }
 
+    
+    function zoomHr(factor, anchorX = null, anchorY = null) {
+      if (state.mode !== 'hr') return;
+
+      const b = plotBounds();
+      const ax = anchorX === null ? (b.left + b.right) / 2 : anchorX;
+      const ay = anchorY === null ? (b.top + b.bottom) / 2 : anchorY;
+
+      const anchorBp = invXHr(ax, b);
+      const anchorMg = invYHr(ay, b);
+      const v = state.hrView;
+      const full = state.fullHrView;
+
+      let newXMin = anchorBp - (anchorBp - v.xMin) * factor;
+      let newXMax = anchorBp + (v.xMax - anchorBp) * factor;
+      let newYMin = anchorMg - (anchorMg - v.yMin) * factor;
+      let newYMax = anchorMg + (v.yMax - anchorMg) * factor;
+
+      const minXSpan = 0.35;
+      const minYSpan = 2.5;
+      if ((newXMax - newXMin) < minXSpan || (newYMax - newYMin) < minYSpan) return;
+
+      const maxXPad = 0.3;
+      const maxYPad = 1.5;
+      if (newXMin < full.xMin - maxXPad) { newXMax += (full.xMin - maxXPad) - newXMin; newXMin = full.xMin - maxXPad; }
+      if (newXMax > full.xMax + maxXPad) { newXMin -= newXMax - (full.xMax + maxXPad); newXMax = full.xMax + maxXPad; }
+      if (newYMin < full.yMin - maxYPad) { newYMax += (full.yMin - maxYPad) - newYMin; newYMin = full.yMin - maxYPad; }
+      if (newYMax > full.yMax + maxYPad) { newYMin -= newYMax - (full.yMax + maxYPad); newYMax = full.yMax + maxYPad; }
+
+      state.hrView = { xMin: newXMin, xMax: newXMax, yMin: newYMin, yMax: newYMax };
+      drawScene();
+    }
+
+    function resetHrZoom() {
+      state.hrView = { ...state.fullHrView };
+      drawScene();
+      log('H–R viewport reset.');
+    }
+
+    function downloadLoadedCsv() {
+      if (!state.dataset) {
+        log('No Gaia dataset loaded yet. Initialize the datastream first.', 'error');
+        return;
+      }
+
+      const hr = state.dataset.hr;
+      const photometry = state.dataset.photometry;
+      const count = state.dataset.count;
+      const lines = [
+        '# Interactive H-R Diagram Laboratory',
+        '# Created by Biswajit Jana, 2026',
+        '# Data source: ESA Gaia DR3',
+        'row,ra_deg,dec_deg,parallax_mas,bp_rp,phot_g_mean_mag,distance_pc,M_G,luminosity_solar_approx'
+      ];
+
+      for (let i = 0; i < count; i++) {
+        const ra = photometry[i * 5];
+        const dec = photometry[i * 5 + 1];
+        const parallax = photometry[i * 5 + 2];
+        const g = photometry[i * 5 + 3];
+        const distance = photometry[i * 5 + 4];
+        const bp = hr[i * 2];
+        const mg = hr[i * 2 + 1];
+        const lum = luminosityFromMG(mg);
+        lines.push([
+          i + 1,
+          ra.toFixed(8),
+          dec.toFixed(8),
+          parallax.toFixed(6),
+          bp.toFixed(6),
+          g.toFixed(6),
+          distance.toFixed(6),
+          mg.toFixed(6),
+          lum.toExponential(6)
+        ].join(','));
+      }
+
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+      const a = document.createElement('a');
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      a.href = URL.createObjectURL(blob);
+      a.download = `gaia_dr3_hr_sample_${count}_stars_${stamp}_Biswajit_Jana.csv`;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(a.href);
+      a.remove();
+      log(`Downloaded ${count.toLocaleString()} processed Gaia rows as CSV.`, 'success');
+    }
+
+
     function exportPNG() {
       const a = document.createElement('a');
       a.download = `gaia-hr-diagram-${state.mode}-${Date.now()}.png`;
@@ -866,6 +1002,10 @@
       rowLimitSelect.addEventListener('change', () => { updateQueryPreview(); log(`Row target changed to ${Number(rowLimitSelect.value).toLocaleString()}`); });
       initializeButton.addEventListener('click', initializeDatastream); clearConsoleButton.addEventListener('click', () => { consoleLog.innerHTML = ''; log('Console cleared.'); });
       exportButton.addEventListener('click', exportPNG);
+      downloadCsvButton?.addEventListener('click', downloadLoadedCsv);
+      zoomInButton?.addEventListener('click', () => zoomHr(0.72));
+      zoomOutButton?.addEventListener('click', () => zoomHr(1.38));
+      zoomResetButton?.addEventListener('click', resetHrZoom);
       colourTemplateSelect.addEventListener('change', () => { state.colourTemplate = colourTemplateSelect.value; log(`Colour template: ${state.colourTemplate}`); drawScene(); });
       overlayTemplateSelect.addEventListener('change', () => { state.overlayTemplate = overlayTemplateSelect.value; if (state.overlayTemplate !== 'clean') state.showRegions = showRegionsInput.checked = true; log(`Overlay template: ${state.overlayTemplate}`); drawScene(); });
       showSunInput.addEventListener('change', () => { state.showSun = showSunInput.checked; drawScene(); });
@@ -873,6 +1013,13 @@
       showLuminosityInput.addEventListener('change', () => { state.showLuminosity = showLuminosityInput.checked; drawScene(); });
       canvas.addEventListener('mousemove', ev => { const r = canvas.getBoundingClientRect(); state.mouse = {x: ev.clientX - r.left, y: ev.clientY - r.top}; if (state.mode === 'hr') drawScene(); });
       canvas.addEventListener('mouseleave', () => { state.mouse = null; if (state.mode === 'hr') drawScene(); });
+      canvas.addEventListener('wheel', ev => {
+        if (state.mode !== 'hr') return;
+        ev.preventDefault();
+        const r = canvas.getBoundingClientRect();
+        const factor = ev.deltaY < 0 ? 0.86 : 1.16;
+        zoomHr(factor, ev.clientX - r.left, ev.clientY - r.top);
+      }, { passive: false });
       bindModeToggle(); const ro = new ResizeObserver(resizeCanvas); ro.observe(canvas.parentElement); window.addEventListener('resize', resizeCanvas);
     }
     boot();
