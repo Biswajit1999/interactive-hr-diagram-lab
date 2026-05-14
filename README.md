@@ -16,7 +16,7 @@ https://biswajit1999.github.io/interactive-hr-diagram-lab/
 
 ## Preview
 
-![Classic H–R reference preview](images/MyVersionofHRdiagramforwebpage.png)
+![Classic H–R reference preview](images/gaia-hr-diagram-hr-1778716245340.png)
 
 ---
 
