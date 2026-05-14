@@ -274,6 +274,8 @@
       showSun: showSunInput.checked,
       showRegions: showRegionsInput.checked,
       showLuminosity: showLuminosityInput.checked,
+      hrView: { xMin: -0.5, xMax: 4.5, yMin: -10, yMax: 16 },
+      fullHrView: { xMin: -0.5, xMax: 4.5, yMin: -10, yMax: 16 },
       width: 1000,
       height: 700,
       dpr: 1,
@@ -431,11 +433,61 @@
         bottom: state.height - Math.max(72, state.height * 0.090)
       };
     }
-    function xHr(bpRp, b) { return b.left + (bpRp + 0.5) / 5.0 * (b.right - b.left); }
-    function yHr(MG, b) { return b.top + (MG + 10.0) / 26.0 * (b.bottom - b.top); }
-    function invXHr(x, b) { return -0.5 + (x - b.left) / (b.right - b.left) * 5.0; }
-    function invYHr(y, b) { return -10 + (y - b.top) / (b.bottom - b.top) * 26.0; }
+    function xHr(bpRp, b) {
+      const v = state.hrView || { xMin: -0.5, xMax: 4.5 };
+      return b.left + (bpRp - v.xMin) / (v.xMax - v.xMin) * (b.right - b.left);
+    }
+
+    function yHr(MG, b) {
+      const v = state.hrView || { yMin: -10, yMax: 16 };
+      return b.top + (MG - v.yMin) / (v.yMax - v.yMin) * (b.bottom - b.top);
+    }
+
+    function invXHr(x, b) {
+      const v = state.hrView || { xMin: -0.5, xMax: 4.5 };
+      return v.xMin + (x - b.left) / (b.right - b.left) * (v.xMax - v.xMin);
+    }
+
+    function invYHr(y, b) {
+      const v = state.hrView || { yMin: -10, yMax: 16 };
+      return v.yMin + (y - b.top) / (b.bottom - b.top) * (v.yMax - v.yMin);
+    }
     function luminosityFromMG(MG) { return Math.pow(10, (4.67 - MG) / 2.5); }
+
+
+    function makeNiceTicks(min, max, target = 6) {
+      const span = Math.abs(max - min);
+      if (!Number.isFinite(span) || span === 0) return [min];
+      const rawStep = span / target;
+      const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+      const norm = rawStep / mag;
+      const niceNorm = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
+      const step = niceNorm * mag;
+      const start = Math.ceil(min / step) * step;
+      const ticks = [];
+      for (let v = start; v <= max + step * 0.5; v += step) {
+        ticks.push(Math.abs(v) < 1e-10 ? 0 : v);
+      }
+      return ticks;
+    }
+
+    function formatTick(v) {
+      const av = Math.abs(v);
+      if (av >= 10) return v.toFixed(0);
+      if (av >= 1) return v.toFixed(1).replace(/\.0$/, '');
+      return v.toFixed(2).replace(/0$/, '').replace(/\.0$/, '');
+    }
+
+    function currentZoomLabel() {
+      const v = state.hrView;
+      const f = state.fullHrView;
+      if (!v || !f) return '1.00×';
+      const fullSpan = (f.xMax - f.xMin) * (f.yMax - f.yMin);
+      const currentSpan = (v.xMax - v.xMin) * (v.yMax - v.yMin);
+      const zoom = Math.sqrt(fullSpan / currentSpan);
+      return `${zoom.toFixed(2)}×`;
+    }
+
 
     function drawSpectralAxis(b) {
       const classes = [
@@ -449,6 +501,7 @@
       ctx.textAlign = 'center';
       for (const [label, bp, colour, temp] of classes) {
         const x = xHr(bp, b);
+        if (x < b.left - 18 || x > b.right + 18) continue;
         ctx.fillStyle = colour;
         ctx.fillText(label, x, b.top - 29);
         ctx.fillStyle = 'rgba(234,242,255,0.50)';
@@ -499,9 +552,23 @@
       ctx.fillStyle = 'rgba(234,242,255,0.68)';
       ctx.font = '700 10px JetBrains Mono, monospace';
       ctx.textAlign = 'center';
-      for (let xVal = 0; xVal <= 4; xVal += 1) ctx.fillText(String(xVal), xHr(xVal, b), b.bottom + 22);
+
+      const xv = state.hrView || state.fullHrView;
+      for (const xVal of makeNiceTicks(xv.xMin, xv.xMax, 6)) {
+        const x = xHr(xVal, b);
+        if (x >= b.left - 2 && x <= b.right + 2) ctx.fillText(formatTick(xVal), x, b.bottom + 22);
+      }
+
       ctx.textAlign = 'right';
-      for (let yVal = -10; yVal <= 15; yVal += 5) ctx.fillText(String(yVal), b.left - 12, yHr(yVal, b) + 4);
+      for (const yVal of makeNiceTicks(xv.yMin, xv.yMax, 6)) {
+        const y = yHr(yVal, b);
+        if (y >= b.top - 2 && y <= b.bottom + 2) ctx.fillText(formatTick(yVal), b.left - 12, y + 4);
+      }
+
+      ctx.textAlign = 'right';
+      ctx.fillStyle = 'rgba(53,242,208,0.72)';
+      ctx.font = '800 10px JetBrains Mono, monospace';
+      ctx.fillText(`ZOOM ${currentZoomLabel()}`, b.right, b.top - 14);
 
       if (state.showLuminosity) drawLuminosityAxis(b);
       ctx.restore();
@@ -877,7 +944,8 @@
       state.bridge = new GaiaDataBridge({ targetRows, pageSize: 10000, onProgress: updateTelemetry });
       try {
         const dataset = await state.bridge.fetchStars();
-        state.dataset = dataset; window.__GAIA_DATASET__ = dataset; document.querySelector('.app').classList.add('data-ready');
+        state.dataset = dataset;
+        state.hrView = { ...state.fullHrView }; window.__GAIA_DATASET__ = dataset; document.querySelector('.app').classList.add('data-ready');
         setProgress(100, 'GPU BUFFERS READY'); setStatus('Locked'); engineState.textContent='DATA READY'; bufferState.textContent=`${dataset.count.toLocaleString()} STARS`; loadingScreen.classList.remove('is-visible');
         updateTelemetry({ parsedRows: dataset.telemetry.parsedRows, acceptedRows: dataset.count, rejectedRows: dataset.telemetry.rejectedRows, progress: 100, phase: 'GPU BUFFERS READY' });
         log(`Dataset ready: ${dataset.count.toLocaleString()} stars packed into Float32Array buffers`, 'success');
@@ -902,7 +970,14 @@
 
     
     function zoomHr(factor, anchorX = null, anchorY = null) {
-      if (state.mode !== 'hr') return;
+      if (state.mode !== 'hr') {
+        log('Zoom is available in 2D H–R Plot mode.', 'info');
+        return;
+      }
+      if (!state.dataset) {
+        log('Load Gaia data first, then zoom the H–R plot.', 'info');
+        return;
+      }
 
       const b = plotBounds();
       const ax = anchorX === null ? (b.left + b.right) / 2 : anchorX;
@@ -930,13 +1005,14 @@
       if (newYMax > full.yMax + maxYPad) { newYMin -= newYMax - (full.yMax + maxYPad); newYMax = full.yMax + maxYPad; }
 
       state.hrView = { xMin: newXMin, xMax: newXMax, yMin: newYMin, yMax: newYMax };
+      log(`H–R zoom updated: ${currentZoomLabel()}`);
       drawScene();
     }
 
     function resetHrZoom() {
       state.hrView = { ...state.fullHrView };
       drawScene();
-      log('H–R viewport reset.');
+      log('H–R viewport reset to full Gaia view.');
     }
 
     function downloadLoadedCsv() {
