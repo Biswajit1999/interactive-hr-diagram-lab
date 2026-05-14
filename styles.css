@@ -219,3 +219,240 @@ button, input, select, code { font-family: inherit; }
 @media (max-width: 1180px) {
   .science-caption { display: none; }
 }
+
+
+/* Observatory dashboard skin inspired by the reference H–R interface */
+.app {
+  grid-template-columns: 318px minmax(720px, 1fr) 360px;
+  grid-template-rows: auto minmax(0, 1fr) 62px;
+  gap: 10px;
+  padding: 10px;
+}
+
+.topbar {
+  min-height: 92px;
+  border-radius: 14px;
+  padding: 14px 18px;
+}
+
+.brand h1 {
+  font-size: clamp(1.7rem, 2.4vw, 2.7rem);
+  letter-spacing: -0.045em;
+}
+
+.brand .eyebrow {
+  color: #35f2d0;
+}
+
+.panel,
+.viewport-shell,
+.footer {
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(3, 12, 22, 0.88), rgba(1, 4, 9, 0.82)),
+    radial-gradient(circle at 35% 8%, rgba(53, 242, 208, 0.055), transparent 45%);
+  border-color: rgba(53, 242, 208, 0.18);
+  box-shadow: 0 0 0 1px rgba(53,242,208,0.03) inset, 0 14px 60px rgba(0,0,0,0.52);
+}
+
+.viewport-shell {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.webgl-canvas {
+  filter: contrast(1.05) saturate(1.08);
+}
+
+.app.data-ready .viewport-shell::before {
+  opacity: 0.10 !important;
+}
+
+.science-caption {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 18px;
+  max-width: 670px;
+  background: rgba(1, 8, 14, 0.76);
+}
+
+.observatory-right {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.observatory-card {
+  padding-bottom: 12px;
+}
+
+.region-table {
+  display: grid;
+  gap: 13px;
+}
+
+.region-table div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: baseline;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.region-table strong {
+  color: var(--text);
+  font-size: 0.92rem;
+  min-width: 72px;
+  text-align: right;
+}
+
+.region-table em {
+  font-style: normal;
+  color: var(--cyan);
+  min-width: 48px;
+  text-align: right;
+}
+
+.region-super { color: #ff4df0; }
+.region-giant { color: #ff8a3d; }
+.region-main { color: #35f2d0; }
+.region-dwarf { color: #65a8ff; }
+
+.chart-card {
+  padding-bottom: 10px;
+}
+
+.mini-chart {
+  width: 100%;
+  height: 138px;
+  display: block;
+  border-radius: 8px;
+  border: 1px solid rgba(53,242,208,0.10);
+  background: rgba(0,0,0,0.35);
+}
+
+.spectral-bars {
+  height: 76px;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  align-items: end;
+  gap: 4px;
+  padding: 8px 4px 0;
+  background: linear-gradient(180deg, rgba(2,8,16,0.4), rgba(0,0,0,0.2));
+  border: 1px solid rgba(53,242,208,0.10);
+  border-radius: 8px;
+}
+
+.spectral-bar {
+  border-radius: 6px 6px 2px 2px;
+  box-shadow: 0 0 14px currentColor;
+  min-height: 8px;
+}
+
+.spectral-percentages {
+  margin-top: 7px;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+  font-size: 0.66rem;
+}
+
+.spectral-percentages span {
+  display: grid;
+  gap: 2px;
+}
+
+.spectral-percentages em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.58rem;
+}
+
+.observatory-console {
+  min-height: 170px;
+  flex: 1;
+}
+
+.observatory-console .console-log {
+  max-height: none;
+  height: 100%;
+}
+
+.observatory-footer {
+  display: grid;
+  grid-template-columns: 1.1fr 1.3fr 1.25fr 1.4fr 1fr;
+  gap: 0;
+  align-items: center;
+  padding: 0 12px;
+  text-align: left;
+}
+
+.footer-stat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 18px;
+  border-right: 1px solid rgba(148,163,184,0.12);
+}
+
+.footer-stat:last-child {
+  border-right: 0;
+}
+
+.footer-stat > span {
+  color: var(--cyan);
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
+.footer-stat small {
+  display: block;
+  color: var(--cyan);
+  text-transform: uppercase;
+  font-size: 0.63rem;
+  letter-spacing: 0.09em;
+  margin-bottom: 3px;
+}
+
+.footer-stat strong {
+  display: block;
+  color: var(--text);
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-left .panel-section h2,
+.sidebar-right .panel-section h2 {
+  letter-spacing: 0.18em;
+}
+
+@media (max-width: 1260px) {
+  .app {
+    grid-template-columns: 300px minmax(520px, 1fr);
+    grid-template-areas:
+      "top top"
+      "left viewport"
+      "right right"
+      "footer footer";
+    grid-template-rows: auto minmax(480px, 1fr) 420px 62px;
+    overflow: auto;
+  }
+
+  html, body { overflow: auto; }
+
+  .observatory-right {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .observatory-console {
+    grid-column: 1 / -1;
+  }
+}

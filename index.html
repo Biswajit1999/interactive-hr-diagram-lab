@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gaia Galactic Explorer & H–R Engine</title>
+  <title>Interactive H–R Diagram Laboratory | Gaia DR3</title>
   <meta name="description" content="A real Gaia DR3 H–R diagram laboratory with template overlays, Sun marker, and Galactic projection." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,8 +18,8 @@
     <header class="topbar">
       <div class="brand">
         <span class="eyebrow">ESA GAIA DR3 / MISSION CONTROL</span>
-        <h1>Gaia Galactic Explorer <em>&</em> H–R Engine</h1>
-        <p>Real Gaia DR3 catalogue rows → parallax distances → absolute magnitudes → H–R diagram + local Galactic projection. No fake stars.</p>
+        <h1>Interactive H–R Diagram Laboratory</h1>
+        <p>Explore the lives of stars with real Gaia DR3 catalogue rows: colour, distance, luminosity, stellar regions, and a local Galactic projection.</p>
       </div>
 
       <div class="top-actions">
@@ -126,31 +126,47 @@
       </div>
     </section>
 
-    <aside class="panel sidebar-right">
-      <section class="panel-section">
-        <h2>Telemetry</h2>
-        <div class="metric-grid">
-          <div class="metric"><span>Status</span><strong id="stream-status">Idle</strong></div>
-          <div class="metric"><span>Progress</span><strong id="progress-readout">0%</strong></div>
-          <div class="metric"><span>Rows parsed</span><strong id="rows-parsed">0</strong></div>
-          <div class="metric"><span>Stars loaded</span><strong id="stars-loaded">0</strong></div>
-          <div class="metric"><span>Rejected</span><strong id="rows-rejected">0</strong></div>
-          <div class="metric"><span>Speed</span><strong id="speed-readout">0 rows/s</strong></div>
-          <div class="metric"><span>Elapsed</span><strong id="elapsed-readout">00:00</strong></div>
-          <div class="metric"><span>ETA</span><strong id="eta-readout">--:--</strong></div>
+    <aside class="panel sidebar-right observatory-right">
+      <section class="panel-section observatory-card">
+        <h2>Region Population</h2>
+        <div class="region-table">
+          <div><span class="region region-super">Supergiants</span><strong id="stat-supergiants">—</strong><em id="pct-supergiants">—</em></div>
+          <div><span class="region region-giant">Red Giants</span><strong id="stat-giants">—</strong><em id="pct-giants">—</em></div>
+          <div><span class="region region-main">Main Sequence</span><strong id="stat-main">—</strong><em id="pct-main">—</em></div>
+          <div><span class="region region-dwarf">White Dwarfs</span><strong id="stat-dwarfs">—</strong><em id="pct-dwarfs">—</em></div>
         </div>
       </section>
 
-      <section class="panel-section console-section">
+      <section class="panel-section observatory-card chart-card">
+        <h2>Luminosity Function</h2>
+        <canvas id="luminosity-chart" class="mini-chart" width="340" height="138"></canvas>
+      </section>
+
+      <section class="panel-section observatory-card">
+        <h2>Spectral Type Distribution</h2>
+        <div id="spectral-bars" class="spectral-bars" aria-label="Spectral type distribution"></div>
+        <div id="spectral-percentages" class="spectral-percentages"></div>
+      </section>
+
+      <section class="panel-section observatory-card chart-card">
+        <h2>Isochrone Overlay</h2>
+        <canvas id="isochrone-chart" class="mini-chart" width="340" height="138"></canvas>
+      </section>
+
+      <section class="panel-section console-section observatory-console">
         <div class="console-header"><h2>Live Console</h2><button id="clear-console" type="button">Clear</button></div>
         <div id="console-log" class="console-log" aria-live="polite"></div>
       </section>
     </aside>
 
-    <footer class="footer">
-      <span>© 2026 Biswajit Jana</span>
-      <span id="footer-status">STANDBY</span>
-      <span>Gaia DR3 Galactic Explorer · template overlays + Sun marker</span>
+    <footer
+
+    <footer class="footer observatory-footer">
+      <div class="footer-stat"><span>☆</span><div><small>Total Stars</small><strong id="footer-total-stars">0</strong></div></div>
+      <div class="footer-stat"><span>🌡</span><div><small>Colour Range</small><strong id="footer-colour-range">BP–RP —</strong></div></div>
+      <div class="footer-stat"><span>☉</span><div><small>Sun Reference</small><strong>G2V · M<sub>G</sub> 4.67</strong></div></div>
+      <div class="footer-stat"><span>◎</span><div><small>Dataset</small><strong id="footer-dataset">Gaia DR3</strong></div></div>
+      <div class="footer-stat"><span>⚙</span><div><small>Status</small><strong id="footer-status">STANDBY</strong></div></div>
     </footer>
   </main>
 
@@ -194,6 +210,22 @@
     const bufferState = document.getElementById('buffer-state');
     const viewportModeReadout = document.getElementById('viewport-mode-readout');
     const consoleLog = document.getElementById('console-log');
+
+    const statSupergiants = document.getElementById('stat-supergiants');
+    const statGiants = document.getElementById('stat-giants');
+    const statMain = document.getElementById('stat-main');
+    const statDwarfs = document.getElementById('stat-dwarfs');
+    const pctSupergiants = document.getElementById('pct-supergiants');
+    const pctGiants = document.getElementById('pct-giants');
+    const pctMain = document.getElementById('pct-main');
+    const pctDwarfs = document.getElementById('pct-dwarfs');
+    const luminosityChart = document.getElementById('luminosity-chart');
+    const isochroneChart = document.getElementById('isochrone-chart');
+    const spectralBars = document.getElementById('spectral-bars');
+    const spectralPercentages = document.getElementById('spectral-percentages');
+    const footerTotalStars = document.getElementById('footer-total-stars');
+    const footerColourRange = document.getElementById('footer-colour-range');
+    const footerDataset = document.getElementById('footer-dataset');
     const modeInputs = document.querySelectorAll("input[name='view-mode']");
 
     const SUN = { bpRp: 0.82, MG: 4.67, label: '☉ Sun', teff: '5,772 K', spectral: 'G2V' };
@@ -621,6 +653,168 @@
       ctx.restore(); if(state.mode==='galaxy') state.animationId=requestAnimationFrame(drawScene);
     }
 
+    
+    function classifyStar(bpRp, MG) {
+      if (MG < -3.0) return 'supergiants';
+      if (bpRp > 0.75 && MG < 2.3) return 'giants';
+      if (MG > 10.5 && bpRp < 1.45) return 'dwarfs';
+      return 'main';
+    }
+
+    function spectralClassFromBpRp(bpRp) {
+      if (bpRp < -0.2) return 'O';
+      if (bpRp < 0.0) return 'B';
+      if (bpRp < 0.3) return 'A';
+      if (bpRp < 0.58) return 'F';
+      if (bpRp < 0.82) return 'G';
+      if (bpRp < 1.45) return 'K';
+      return 'M';
+    }
+
+    function updateObservatoryPanels() {
+      if (!state.dataset) return;
+
+      const hr = state.dataset.hr;
+      const count = state.dataset.count;
+      const populations = { supergiants: 0, giants: 0, main: 0, dwarfs: 0 };
+      const spectral = { O: 0, B: 0, A: 0, F: 0, G: 0, K: 0, M: 0 };
+      let minBP = Infinity, maxBP = -Infinity;
+      let minMG = Infinity, maxMG = -Infinity;
+
+      for (let i = 0; i < count; i++) {
+        const bp = hr[i * 2];
+        const mg = hr[i * 2 + 1];
+        populations[classifyStar(bp, mg)]++;
+        spectral[spectralClassFromBpRp(bp)]++;
+        if (bp < minBP) minBP = bp;
+        if (bp > maxBP) maxBP = bp;
+        if (mg < minMG) minMG = mg;
+        if (mg > maxMG) maxMG = mg;
+      }
+
+      const pct = value => count ? `${(100 * value / count).toFixed(1)}%` : '—';
+      statSupergiants.textContent = populations.supergiants.toLocaleString();
+      statGiants.textContent = populations.giants.toLocaleString();
+      statMain.textContent = populations.main.toLocaleString();
+      statDwarfs.textContent = populations.dwarfs.toLocaleString();
+      pctSupergiants.textContent = pct(populations.supergiants);
+      pctGiants.textContent = pct(populations.giants);
+      pctMain.textContent = pct(populations.main);
+      pctDwarfs.textContent = pct(populations.dwarfs);
+
+      footerTotalStars.textContent = count.toLocaleString();
+      footerColourRange.textContent = `${minBP.toFixed(2)} – ${maxBP.toFixed(2)} BP–RP`;
+      footerDataset.textContent = `Gaia DR3 · M_G ${minMG.toFixed(1)} to ${maxMG.toFixed(1)}`;
+
+      drawLuminosityChart();
+      drawIsochroneChart();
+      drawSpectralBars(spectral, count);
+    }
+
+    function drawLuminosityChart() {
+      if (!state.dataset || !luminosityChart) return;
+      const c = luminosityChart;
+      const cctx = c.getContext('2d');
+      const w = c.width, h = c.height;
+      cctx.clearRect(0, 0, w, h);
+      cctx.fillStyle = 'rgba(1, 2, 4, 0.95)';
+      cctx.fillRect(0, 0, w, h);
+
+      const bins = new Array(38).fill(0);
+      const min = -4.5, max = 6.0;
+      const hr = state.dataset.hr;
+      for (let i = 0; i < state.dataset.count; i++) {
+        const MG = hr[i * 2 + 1];
+        const logL = Math.log10(luminosityFromMG(MG));
+        const b = Math.floor((logL - min) / (max - min) * bins.length);
+        if (b >= 0 && b < bins.length) bins[b]++;
+      }
+      const peak = Math.max(...bins, 1);
+      const pad = 28;
+
+      cctx.strokeStyle = 'rgba(53,242,208,0.18)';
+      cctx.lineWidth = 1;
+      for (let i = 0; i < 4; i++) {
+        const y = pad + i * (h - pad * 1.5) / 3;
+        cctx.beginPath(); cctx.moveTo(pad, y); cctx.lineTo(w - 10, y); cctx.stroke();
+      }
+
+      cctx.strokeStyle = 'rgba(53,242,208,0.9)';
+      cctx.lineWidth = 2;
+      cctx.beginPath();
+      bins.forEach((v, i) => {
+        const x = pad + i / (bins.length - 1) * (w - pad - 12);
+        const y = h - 22 - (v / peak) * (h - 48);
+        if (i === 0) cctx.moveTo(x, y); else cctx.lineTo(x, y);
+      });
+      cctx.stroke();
+
+      cctx.fillStyle = 'rgba(234,242,255,0.62)';
+      cctx.font = '10px JetBrains Mono, monospace';
+      cctx.fillText('log L/L☉', w - 78, h - 6);
+      cctx.fillText('−4', pad, h - 6);
+      cctx.fillText('+6', w - 24, h - 6);
+    }
+
+    function drawSpectralBars(spectral, count) {
+      if (!spectralBars || !spectralPercentages) return;
+      const classes = ['O', 'B', 'A', 'F', 'G', 'K', 'M'];
+      const colours = {
+        O: '#65a8ff', B: '#9cc9ff', A: '#eaf2ff', F: '#fff5bd',
+        G: '#ffe36e', K: '#ff9a3d', M: '#ff3b3b'
+      };
+      const maxVal = Math.max(...classes.map(k => spectral[k]), 1);
+      spectralBars.innerHTML = '';
+      spectralPercentages.innerHTML = '';
+      for (const k of classes) {
+        const bar = document.createElement('div');
+        bar.className = 'spectral-bar';
+        bar.style.height = `${Math.max(8, 60 * spectral[k] / maxVal)}px`;
+        bar.style.background = colours[k];
+        bar.title = `${k}: ${spectral[k].toLocaleString()} stars`;
+        spectralBars.appendChild(bar);
+
+        const label = document.createElement('span');
+        label.innerHTML = `<strong style="color:${colours[k]}">${k}</strong><em>${count ? (100 * spectral[k] / count).toFixed(1) : '0.0'}%</em>`;
+        spectralPercentages.appendChild(label);
+      }
+    }
+
+    function drawIsochroneChart() {
+      if (!isochroneChart) return;
+      const c = isochroneChart;
+      const cctx = c.getContext('2d');
+      const w = c.width, h = c.height;
+      cctx.clearRect(0, 0, w, h);
+      cctx.fillStyle = 'rgba(1, 2, 4, 0.95)';
+      cctx.fillRect(0, 0, w, h);
+      cctx.strokeStyle = 'rgba(148,163,184,0.14)';
+      cctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = 16 + i * (h - 34) / 4;
+        cctx.beginPath(); cctx.moveTo(26, y); cctx.lineTo(w - 10, y); cctx.stroke();
+      }
+      const tracks = [
+        ['rgba(53,242,208,0.85)', [[0.0,0.1],[0.35,1.4],[0.8,3.8],[1.2,6.7],[1.7,9.7]]],
+        ['rgba(255,226,110,0.85)', [[0.05,0.2],[0.5,1.3],[1.0,3.0],[1.55,1.0],[2.0,-1.0],[2.7,-2.2]]],
+        ['rgba(255,74,237,0.78)', [[0.0,-1.0],[0.8,-2.4],[1.6,-3.2],[2.5,-4.0]]]
+      ];
+      function sx(bp){ return 34 + (bp + 0.2) / 3.4 * (w - 58); }
+      function sy(mg){ return 18 + (mg + 5) / 18 * (h - 38); }
+      for (const [colour, pts] of tracks) {
+        cctx.strokeStyle = colour;
+        cctx.setLineDash([4,5]);
+        cctx.beginPath();
+        pts.forEach((p,i)=>{ const x=sx(p[0]), y=sy(p[1]); if(i===0)cctx.moveTo(x,y); else cctx.lineTo(x,y); });
+        cctx.stroke();
+      }
+      cctx.setLineDash([]);
+      cctx.fillStyle = 'rgba(234,242,255,0.60)';
+      cctx.font = '10px JetBrains Mono, monospace';
+      cctx.fillText('evolution guide', 30, 14);
+    }
+
+
     function drawScene() {
       if (state.animationId) { cancelAnimationFrame(state.animationId); state.animationId = null; }
       if (state.mode === 'hr') drawHRDiagram(); else drawGalaxyMap();
@@ -642,6 +836,7 @@
         updateTelemetry({ parsedRows: dataset.telemetry.parsedRows, acceptedRows: dataset.count, rejectedRows: dataset.telemetry.rejectedRows, progress: 100, phase: 'GPU BUFFERS READY' });
         log(`Dataset ready: ${dataset.count.toLocaleString()} stars packed into Float32Array buffers`, 'success');
         log('Rendering H–R diagram now. Try Classic Textbook template + Annotated overlay.', 'success');
+        updateObservatoryPanels();
         drawScene();
       } catch (error) {
         console.error(error); setStatus('Error'); engineState.textContent='STREAM FAILED'; bufferState.textContent='EMPTY'; setProgress(0, 'STREAM FAILED');
