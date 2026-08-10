@@ -309,3 +309,7 @@ Created by **Biswajit Jana** as part of an academic and scientific computing por
 Code may be reused or modified with credit.  
 Gaia catalogue data belongs to the original Gaia mission/archive sources.  
 Visual design, text, and project presentation should not be copied without attribution.
+
+## Research Quality Upgrade
+
+See [RESEARCH_QUALITY.md](RESEARCH_QUALITY.md) for the validation layer, reference anchors, equations and research boundaries added to this repository.

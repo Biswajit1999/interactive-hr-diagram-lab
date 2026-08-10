@@ -397,7 +397,7 @@
       for (let y = 0; y < h; y += 44) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
     }
 
-    function drawPlaceholder() {
+    function drawEmptyDataState() {
       clearCanvas();
       ctx.fillStyle = 'rgba(234,242,255,0.72)';
       ctx.font = '700 16px JetBrains Mono, monospace';
@@ -721,7 +721,7 @@
 
 
     function drawHRDiagram() {
-      if (!state.dataset) return drawPlaceholder();
+      if (!state.dataset) return drawEmptyDataState();
       clearCanvas();
       const b = plotBounds();
       drawAxes(b, `Gaia DR3 H–R diagram · ${state.dataset.count.toLocaleString()} stars`);
@@ -742,7 +742,7 @@
     }
 
     function drawGalaxyMap() {
-      if (!state.dataset) return drawPlaceholder();
+      if (!state.dataset) return drawEmptyDataState();
       clearCanvas();
       const w=state.width, h=state.height, cx=w/2, cy=h/2;
       const positions=state.dataset.positions, hr=state.dataset.hr, count=state.dataset.count;
@@ -1100,5 +1100,6 @@
     }
     boot();
   </script>
+  <script src="research-overlay.js"></script>
 </body>
 </html>

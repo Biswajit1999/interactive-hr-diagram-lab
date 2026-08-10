@@ -1,0 +1,28 @@
+{
+  "title": "Interactive HR Diagram Lab",
+  "description": "Gaia-style Hertzsprung-Russell diagram lab for colour-magnitude structure, stellar populations and evolution tracks.",
+  "equations": [
+    "Absolute magnitude M = m - 5 log10(d/10 pc)",
+    "Luminosity-temperature-radius scaling L = 4 pi R^2 sigma T^4"
+  ],
+  "references": [
+    "Gaia Collaboration, 2023. Gaia Data Release 3: Summary of the content and survey properties. Astronomy & Astrophysics, 674, A1."
+  ],
+  "anchors": [
+    {
+      "x": 0.65,
+      "y": 4.83,
+      "label": "solar main sequence"
+    },
+    {
+      "x": 1.5,
+      "y": 10.5,
+      "label": "red dwarf locus"
+    },
+    {
+      "x": -0.1,
+      "y": -1,
+      "label": "blue luminous branch"
+    }
+  ]
+}
