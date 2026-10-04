@@ -9,7 +9,7 @@ A real-data browser laboratory for exploring nearby Gaia DR3 stars as a **Hertzs
 
 This project is designed as a scientific portfolio tool: visually polished enough for public presentation, but still grounded in real catalogue data, real parallax distances, and transparent calculations.
 
-**Live demo:**  
+**Live demo:**
 https://biswajit1999.github.io/interactive-hr-diagram-lab/
 
 ---
@@ -306,10 +306,6 @@ Created by **Biswajit Jana** as part of an academic and scientific computing por
 
 © 2026 Biswajit Jana.
 
-Code may be reused or modified with credit.  
-Gaia catalogue data belongs to the original Gaia mission/archive sources.  
+Code may be reused or modified with credit.
+Gaia catalogue data belongs to the original Gaia mission/archive sources.
 Visual design, text, and project presentation should not be copied without attribution.
-
-## Research Quality Upgrade
-
-See [RESEARCH_QUALITY.md](RESEARCH_QUALITY.md) for the validation layer, reference anchors, equations and research boundaries added to this repository.
