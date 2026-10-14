@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this research software, please cite it using this metadata."
+title: "Interactive H–R Diagram Laboratory | Gaia DR3"
+abstract: "A real Gaia DR3 H–R diagram laboratory with template overlays, Sun marker, and Galactic projection."
+type: software
+authors:
+  - family-names: Jana
+    given-names: Biswajit
+repository-code: "https://github.com/Biswajit1999/interactive-hr-diagram-lab"
+url: "https://biswajit1999.github.io/interactive-hr-diagram-lab/"
+keywords:
+  - "astronomy"
+  - "astrophysics"
+  - "scientific computing"
+  - "Gaia astrometry"
+  - "stellar astronomy"
+  - "binary stars"
